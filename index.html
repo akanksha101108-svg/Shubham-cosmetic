@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="theme-color" content="#fff8fa">
+	<meta name="description" content="Shop cosmetics and beauty essentials at Shubham General Store.">
+	<title>Shubham General Store | Cosmetics and beauty</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+	<link rel="icon" type="image/svg+xml" href="assets/images/shubham-general-store-logo.svg">
+	<link rel="stylesheet" href="style.css">
+	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+	<script src="supabase-config.js" defer></script>
+	<script src="products.js" defer></script>
+	<script src="script.js" defer></script>
+</head>
+<body>
+	<div class="announcement" id="top">A little beauty, delivered with love <span>·</span> Demo store, prices and offers are for display only</div>
+	<header class="site-header">
+		<div class="header-main page-width">
+			<button class="icon-button menu-toggle" id="menuToggle" type="button" aria-label="Open navigation" aria-expanded="false"><span></span><span></span><span></span></button>
+			<a class="brand-mark" href="#top" data-store-home aria-label="Shubham General Store home"><img class="brand-logo" src="assets/images/shubham-general-store-logo.svg" alt=""><span class="brand-wordmark" data-store-wordmark><span class="brand-primary">Shubham</span><span class="brand-subtitle">GENERAL STORE</span></span></a>
+			<form class="search-form" id="searchForm" role="search">
+				<label class="visually-hidden" for="searchInput">Search products, brands and categories</label>
+				<input id="searchInput" type="search" placeholder="Search your beauty favourites" autocomplete="off">
+				<button type="submit" aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 5 5"></path></svg></button>
+			</form>
+			<button class="cart-trigger" id="openCart" type="button" aria-label="Open shopping bag, 0 items"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z"></path><path d="M9 9V6a3 3 0 0 1 6 0v3"></path></svg><span class="cart-label">Bag</span><span class="cart-count" id="cartCount">0</span></button>
+		</div>
+		<nav class="main-nav" id="mainNav" aria-label="Main navigation">
+			<div class="page-width nav-inner">
+				<a href="#shop" data-nav-category="All">Shop all</a>
+				<div class="nav-category-links" id="navCategoryLinks"></div>
+			</div>
+		</nav>
+	</header>
+
+	<main id="home">
+		<section class="hero page-width" aria-labelledby="heroTitle">
+			<div class="hero-copy">
+				<p class="eyebrow">YOUR BEAUTY, YOUR WAY</p>
+				<h1 id="heroTitle">A little ritual.<br><em>A lot of you.</em></h1>
+				<p class="hero-description">The feel-good finds for every version of you, from everyday essentials to just-because treats.</p>
+				<a class="button button-dark" href="#shop">Explore the edit <span aria-hidden="true">↗</span></a>
+				<div class="hero-note"><span class="note-rule"></span> BEAUTY PICKS, THOUGHTFULLY GATHERED</div>
+			</div>
+			<div class="hero-visual">
+				<img src="https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=1200&q=85" alt="A curated collection of makeup and beauty products" fetchpriority="high">
+				<div class="hero-sticker"><span>LOVE</span><strong>the skin<br>you're in</strong></div>
+				<div class="hero-caption">THE EVERYDAY BEAUTY EDIT <span>01 / 06</span></div>
+			</div>
+		</section>
+
+		<section class="trust-strip" aria-label="Store information">
+			<div class="page-width trust-inner"><span>✳ Curated beauty finds</span><span>✳ Multiple much-loved brands</span><span>✳ Orders confirmed on WhatsApp</span><span class="demo-note">Demo storefront · No verified stock or offers</span></div>
+		</section>
+
+		<section class="category-section page-width" aria-labelledby="categoryTitle">
+			<div class="section-heading compact-heading"><div><p class="eyebrow">FIND YOUR FEEL</p><h2 id="categoryTitle">A good place to start</h2></div><a class="text-link" href="#shop">See everything <span aria-hidden="true">→</span></a></div>
+			<div class="category-list" id="categoryList"></div>
+		</section>
+
+		<section class="promo-band" aria-label="Beauty edit">
+			<div class="page-width promo-content"><span class="promo-index">THE BEAUTY NOTE / 01</span><p>Good skin days<br><em>start with you.</em></p><a href="#shop" class="promo-link">Find your next favourite <span aria-hidden="true">↗</span></a><span class="promo-flower" aria-hidden="true">✿</span></div>
+		</section>
+
+		<section class="brand-section page-width" aria-labelledby="brandTitle">
+			<div class="brand-heading"><p class="eyebrow">THE NAMES YOU LOVE</p><h2 id="brandTitle">A lovely little line-up</h2><p>Explore demo picks from familiar favourites.</p></div>
+			<div class="brand-list" id="brandList"></div>
+		</section>
+
+		<section class="shop-section" id="shop" aria-labelledby="shopTitle">
+			<div class="page-width">
+				<div class="section-heading shop-heading"><div><p class="eyebrow">THE GOOD STUFF</p><h2 id="shopTitle">Bestsellers, picked for you</h2><p class="demo-disclaimer">Demo popularity and sample prices only; product availability, discounts and sales are not verified.</p></div>
+					<label class="sort-control">Sort by <select id="sortSelect" aria-label="Sort products"><option value="popular">Popularity</option><option value="price-ascending">Price: low to high</option><option value="price-descending">Price: high to low</option></select></label>
+				</div>
+				<div class="shop-tools"><div class="filter-list" id="filterList" aria-label="Filter products by category"></div><span class="result-count" id="resultCount" aria-live="polite"></span></div>
+				<div class="product-grid" id="productGrid" aria-live="polite"></div>
+				<div class="empty-results" id="emptyResults" hidden><span class="empty-mark" aria-hidden="true">✿</span><h3>No beauty finds just yet</h3><p>Try another search or browse all our demo products.</p><button class="button button-outline" id="resetFilters" type="button">Show all products</button></div>
+			</div>
+		</section>
+
+		<section class="review-section page-width" aria-labelledby="reviewTitle">
+			<div class="review-mark" aria-hidden="true">“</div><p class="eyebrow">A NOTE FROM OUR DEMO GUESTBOOK</p><h2 id="reviewTitle">“A little moment of me-time,<br>wrapped up beautifully.”</h2><p class="review-byline">DEMO REVIEW · EXAMPLE CONTENT ONLY</p><div class="review-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+		</section>
+	</main>
+
+	<footer class="site-footer">
+		<div class="page-width footer-main"><div class="footer-brand"><a class="brand-mark" href="#top" data-store-home aria-label="Shubham General Store home"><img class="brand-logo" src="assets/images/shubham-general-store-logo.svg" alt=""><span class="brand-wordmark" data-store-wordmark><span class="brand-primary">Shubham</span><span class="brand-subtitle">GENERAL STORE</span></span></a><p>Beauty that feels like you.<br>Curated with a little extra love.</p></div>
+			<div class="footer-column"><h2>EXPLORE</h2><a href="#shop" data-nav-category="All">Shop all</a><div class="footer-category-links" id="footerCategoryLinks"></div></div>
+			<div class="footer-column"><h2>THE DETAILS</h2><p>Demo storefront for browsing and WhatsApp order requests. The store owner must confirm products, availability, delivery charges and final amount.</p></div>
+			<div class="footer-column"><h2>GOOD TO KNOW</h2><p>Sample product details, prices, discounts and the review above are illustrative demo content. No order is saved by this website.</p><a class="footer-admin-link" href="admin.html">Admin Panel sign in</a></div>
+		</div>
+		<div class="footer-bottom page-width"><span>© 2026 <span data-store-name>Shubham General Store</span> · Demo storefront</span><a href="#top">Back to top ↑</a><span>Made for your everyday glow</span></div>
+	</footer>
+
+	<dialog class="admin-dialog" id="adminDialog" aria-labelledby="adminTitle">
+		<div class="admin-dialog-header"><div><p class="eyebrow">DEMO MODE · LOCAL ONLY</p><h2 id="adminTitle">Product manager</h2></div><button class="dialog-close" type="button" data-close-dialog="adminDialog" aria-label="Close product manager">×</button></div>
+		<p class="admin-warning">LOCAL DEMO ONLY: no login, backend, shared inventory, or permanent storage across devices. Product details and photos stay in this browser. Verify actual details before publishing.</p>
+		<section class="bulk-import" aria-labelledby="bulkImportTitle">
+			<div><h3 id="bulkImportTitle">Add multiple products with CSV</h3><p>Import 10 or more rows in one go. Use your actual details; imported products stay unpublished unless the CSV explicitly says true.</p><a href="products-import-template.csv" download>Download blank CSV template</a></div>
+			<div class="bulk-import-controls"><label class="field-label" for="bulkCsvFile">Product CSV<input id="bulkCsvFile" type="file" accept=".csv,text/csv"></label><button class="button button-outline" id="importCsvButton" type="button">Review CSV</button><label class="bulk-option"><input id="allowDuplicateProducts" type="checkbox"> Allow duplicate name + brand</label><p class="form-feedback" id="bulkImportFeedback" role="status" aria-live="polite"></p></div>
+		</section>
+		<details class="bulk-manual" id="bulkManualProducts">
+			<summary>Add multiple products in rows</summary>
+			<p class="bulk-manual-note">Start with 10 rows, then add more if needed. Empty rows are ignored; incomplete rows must be fixed before preview.</p>
+			<div class="bulk-entry-toolbar"><button class="button button-outline" id="addAnotherProduct" type="button">Add Another Product</button><label class="bulk-option"><input id="publishBulkProducts" type="checkbox"> Publish all validated products after saving</label></div>
+			<div class="bulk-product-rows" id="bulkProductRows"></div>
+			<section class="bulk-preview" id="bulkProductPreview" hidden aria-labelledby="bulkPreviewTitle"><h3 id="bulkPreviewTitle">Product preview</h3><div class="bulk-preview-table-wrap"><table class="bulk-preview-table"><thead><tr><th>Product</th><th>Category</th><th>Price / MRP</th><th>Variants</th><th>Stock</th><th>Image</th><th>Check</th></tr></thead><tbody id="bulkPreviewRows"></tbody></table></div></section>
+			<div class="bulk-entry-actions"><button class="button button-outline" id="previewBulkProducts" type="button">Preview & Validate All</button><button class="button button-dark" id="saveAllProducts" type="button" disabled>Save All Products</button></div>
+			<p class="form-feedback" id="bulkManualFeedback" role="status" aria-live="polite"></p>
+		</details>
+		<div class="admin-layout">
+			<form class="admin-form" id="adminProductForm" novalidate>
+				<h3 id="adminFormTitle">Add a product</h3>
+				<input type="hidden" id="adminProductId" name="productId">
+				<div class="admin-fields">
+					<label class="field-label" for="adminBrand">Brand <span>*</span><input id="adminBrand" name="brand" required maxlength="60"></label>
+					<label class="field-label" for="adminName">Product name <span>*</span><input id="adminName" name="name" required maxlength="100"></label>
+					<label class="field-label" for="adminCategory">Category <span>*</span><select id="adminCategory" name="category" required><option value="">Choose category</option></select><small id="adminCategoryNote"></small></label>
+					<label class="field-label" for="adminStockQuantity">Stock quantity <span>*</span><input id="adminStockQuantity" name="stockQuantity" type="number" min="0" step="1" required placeholder="0"><small>0 means out of stock.</small></label>
+					<label class="field-label" for="adminPrice">Selling price in INR <span>*</span><input id="adminPrice" name="price" type="number" min="1" step="1" required></label>
+					<label class="field-label" for="adminOriginalPrice">Original price in INR <span class="optional-label">Optional</span><input id="adminOriginalPrice" name="originalPrice" type="number" min="0" step="1"></label>
+					<label class="field-label field-wide" for="adminImage">Image path or Unsplash photo ID <span class="optional-label">Use this or upload below</span><input id="adminImage" name="image" placeholder="assets/images/lipstick.jpg"><small>Local path, photo-… Unsplash ID, or HTTPS image URL.</small></label>
+					<label class="field-label field-wide" for="adminImageFile">Upload product photo <span class="optional-label">Optional</span><input id="adminImageFile" name="imageFile" type="file" accept="image/*"><small>Image is compressed and saved only in this browser; storage space is limited.</small></label>
+					<div class="admin-image-preview field-wide" id="adminImagePreview"><span>Photo preview</span><img alt="Product image preview" hidden></div>
+					<label class="field-label field-wide" for="adminDescription">Description <span>*</span><textarea id="adminDescription" name="description" rows="3" required maxlength="400"></textarea></label>
+					<label class="field-label field-wide" for="adminShades">Size, shade or variant <span class="optional-label">Optional, separate with | or comma</span><input id="adminShades" name="shades" placeholder="Rose | Berry | 50 ml"></label>
+					<label class="publish-field field-wide" for="adminPublished"><input id="adminPublished" name="published" type="checkbox"><span>Publish this owner-entered product in the public catalogue</span></label>
+				</div>
+				<div class="admin-form-actions"><button class="button button-dark" id="adminSaveButton" type="submit">Add product</button><button class="button button-outline" id="clearAdminForm" type="button">Clear form</button></div>
+				<p class="form-feedback" id="adminFeedback" role="status" aria-live="polite"></p>
+			</form>
+			<section class="admin-catalog" aria-labelledby="adminCatalogTitle"><div class="admin-catalog-heading"><h3 id="adminCatalogTitle">Products in this browser</h3><span id="adminProductCount"></span></div><div class="admin-source-actions"><span>Browser edits override products.js on this device.</span><button type="button" id="restoreSourceCatalog">Reset to products.js</button></div><div id="adminProductList"></div></section>
+		</div>
+	</dialog>
+
+	<dialog class="product-dialog" id="productDialog" aria-labelledby="detailName"><button class="dialog-close" type="button" data-close-dialog="productDialog" aria-label="Close product details">×</button><div id="productDetail"></div></dialog>
+
+	<dialog class="cart-dialog" id="cartDialog" aria-labelledby="cartTitle"><div class="cart-header"><div><p class="eyebrow">YOUR LITTLE EDIT</p><h2 id="cartTitle">Your bag <span id="cartTitleCount"></span></h2></div><button class="dialog-close" type="button" data-close-dialog="cartDialog" aria-label="Close shopping bag">×</button></div>
+		<div id="cartContents"></div>
+		<form class="checkout-form" id="checkoutForm" novalidate>
+			<div class="checkout-heading"><p class="eyebrow" data-store-name>Shubham General Store</p><h3>Delivery details</h3><p>We’ll prepare a message for you to review in WhatsApp.</p></div>
+			<div class="form-grid">
+				<label class="field-label" for="customerName">Full name <span>*</span><input id="customerName" name="customerName" autocomplete="name" required maxlength="80"></label>
+				<label class="field-label" for="customerPhone">Indian mobile number <span>*</span><input id="customerPhone" name="customerPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile number" required></label>
+				<label class="field-label field-wide" for="customerAddress">Complete delivery address <span>*</span><textarea id="customerAddress" name="customerAddress" autocomplete="street-address" rows="3" maxlength="300" required></textarea></label>
+				<label class="field-label" for="customerPin">PIN code <span>*</span><input id="customerPin" name="customerPin" inputmode="numeric" autocomplete="postal-code" maxlength="6" placeholder="6 digits" required></label>
+				<label class="field-label field-wide" for="orderNotes">Order notes <span class="optional-label">Optional</span><textarea id="orderNotes" name="orderNotes" rows="2" maxlength="300" placeholder="Anything else the store should know?"></textarea></label>
+			</div>
+			<div class="checkout-summary" id="checkoutSummary"></div>
+			<p class="checkout-disclaimer">The store owner must confirm availability, delivery charges and your final amount. Submitting opens WhatsApp; it does not save or send an order automatically.</p>
+			<p class="form-feedback" id="formFeedback" role="status" aria-live="polite"></p>
+			<button class="button button-dark whatsapp-button" id="whatsappButton" type="submit"><span>Order on WhatsApp</span><span aria-hidden="true">↗</span></button>
+		</form>
+	</dialog>
+	<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
