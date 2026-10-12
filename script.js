@@ -792,7 +792,7 @@ function openProduct(productId) {
 	productDialog.showModal();
 }
 
-function addToCart(product, quantity = 1, shade = "") {
+function addToCart(product, quantity = 1, shade = "") {}
 	const maxQuantity = Math.min(10, product.stockQuantity ?? 10);
 
 	if (product.stockStatus !== "in-stock" || maxQuantity < 1) {
@@ -811,10 +811,37 @@ function addToCart(product, quantity = 1, shade = "") {
 		state.cart.push({ id: product.id, quantity: count, shade });
 	}
 
-	renderCart();
-	showToast(`${product.name} added to your bag`);
-	return true;
+	
+const quantityButton = event.target.closest("[data-quantity]");
+
+if (quantityButton) {
+  event.preventDefault();
+
+  const item = state.cart.find(
+    (entry) =>
+      String(entry.id) === String(quantityButton.dataset.id) &&
+      String(entry.shade || "") === String(quantityButton.dataset.shade || "")
+  );
+
+  if (item) {
+    const product = findProduct(item.id);
+
+    if (product) {
+      const change = Number(quantityButton.dataset.quantity);
+      const maxQuantity = Math.min(10, product.stockQuantity ?? 10);
+      const nextQuantity = item.quantity + change;
+
+      if (nextQuantity > maxQuantity) {
+        showToast("Available stock ki maximum quantity tak hi badha sakte hain.");
+      } else {
+        item.quantity = Math.max(1, nextQuantity);
+      }
+
+      renderCart();
+    }
+  }
 }
+
 
 function cartItemMarkup(item) {
 	const product = findProduct(item.id);
