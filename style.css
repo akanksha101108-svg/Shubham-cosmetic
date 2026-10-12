@@ -448,3 +448,32 @@ dialog::backdrop { background: rgba(43,32,36,.48); backdrop-filter: blur(2px); }
 @media (prefers-reduced-motion: reduce) {
 	*, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+
+/* CSS-made beauty category visuals */
+.category-image.category-art {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 35% 25%, #fffdfd, #ffe0e7 65%, #f7bdcc);
+  border: 1px solid #f8d1db;
+  box-shadow: 0 5px 15px rgba(180, 90, 115, 0.12);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.category-art-icon {
+  display: grid;
+  place-items: center;
+  width: 74%;
+  height: 74%;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffffff, #fff0f4);
+  font-size: clamp(30px, 4vw, 48px);
+  box-shadow: 0 4px 12px rgba(130, 60, 80, 0.12);
+}
+
+.category-tile:hover .category-image.category-art {
+  transform: translateY(-4px);
+  box-shadow: 0 9px 20px rgba(180, 90, 115, 0.2);
+}
+
+
