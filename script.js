@@ -317,19 +317,10 @@ function renderStoreName() {
 function renderCategories() {
 	categoryList.innerHTML = CATEGORIES.slice(1).map((category) => `
 		<button class="category-tile" type="button" data-category="${escapeHtml(category)}">
-			
-<span class="category-image category-art">
-  <span class="category-art-icon" aria-hidden="true">${({
-    "Makeup": "💄",
-    "Skincare": "🧴",
-    "Haircare": "🪮",
-    "Nail Care": "💅",
-    "Beauty Accessories": "🖌️",
-    "Bangles": "💍",
-    "Fragrance": "🌸",
-    "Women’s Care": "🌷"
-  })[category] || "✨"}</span>
-</span>
+			<span class="category-image">
+				<img src="${imageUrl(CATEGORY_IMAGES[category], 300)}" alt="" loading="lazy">
+				<span class="category-image-fallback" hidden>${escapeHtml(category)}</span>
+			</span>
 			<span>${escapeHtml(category)}</span>
 		</button>
 	`).join("");
