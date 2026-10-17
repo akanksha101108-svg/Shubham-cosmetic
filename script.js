@@ -766,7 +766,9 @@ function openProduct(productId) {
 
 	detail.innerHTML = `<div class="detail-layout">
 		<div class="detail-image">
-			<img src="${escapeHtml(imageUrl(product.image, 800))}" alt="${escapeHtml(product.brand)} ${escapeHtml(product.name)}">
+			
+<img class="detail-product-image" src="${escapeHtml(imageUrl(product.shadeImages?.[state.selectedShade] || product.image, 800))}" alt="${escapeHtml(product.name)}">
+" alt="${escapeHtml(product.brand)} ${escapeHtml(product.name)}">
 			<span class="image-fallback" aria-hidden="true">${escapeHtml(product.name)}</span>
 		</div>
 		<div class="detail-copy">
@@ -776,7 +778,26 @@ function openProduct(productId) {
 			<p class="detail-stock ${product.stockStatus === "in-stock" ? "available" : "unavailable"}">${product.isDemo ? "Sample stock status" : "Owner-entered stock status (not live inventory)"}: ${product.stockStatus === "in-stock" ? "In stock" : "Out of stock"}</p>
 			<span class="detail-demo-note">${product.isDemo ? "Sample price only · availability not verified" : "Owner-entered details · verify price, stock and claims before sale"}</span>
 			<p class="detail-description">${escapeHtml(product.description)}</p>
-			${product.shades?.length ? `<p class="shade-label">Choose a shade</p><div class="shade-options" role="group" aria-label="Available demo shades">${product.shades.map((shade) => `<button class="shade-option" type="button" data-shade="${escapeHtml(shade)}" aria-pressed="${shade === state.selectedShade}">${escapeHtml(shade)}</button>`).join("")}</div>` : ""}
+			
+${product.shades?.length ? `
+  <p class="shade-label">Choose a shade</p>
+  <div class="shade-options" role="group" aria-label="Available shades">
+    ${product.shades.map((shade, index) => `
+      <button
+        class="shade-option"
+        type="button"
+        data-shade="${escapeHtml(shade)}"
+        aria-pressed="${shade === state.selectedShade}"
+        title="${escapeHtml(shade)}"
+      >
+        <span class="shade-swatch shade-swatch-${index % 6}"></span>
+        <span class="shade-name">${escapeHtml(shade)}</span>
+      </button>
+    `).join("")}
+  </div>
+  <p class="selected-shade-name">Selected shade: ${escapeHtml(state.selectedShade || product.shades[0])}</p>
+` : ""}
+
 			<div class="detail-actions">
 				<label class="visually-hidden" for="detailQuantity">Quantity</label>
 				<input class="quantity-input" id="detailQuantity" type="number" min="1" max="10" value="1">
@@ -1703,13 +1724,32 @@ document.addEventListener("click", (event) => {
 
 	const shadeButton = event.target.closest("[data-shade]");
 
-	if (shadeButton) {
-		state.selectedShade = shadeButton.dataset.shade;
+	
+if (shadeButton) {
+  state.selectedShade = shadeButton.dataset.shade;
 
-		productDialog.querySelectorAll(".shade-option").forEach((button) => {
-			button.setAttribute("aria-pressed", String(button === shadeButton));
-		});
-	}
+  productDialog.querySelectorAll(".shade-option").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button === shadeButton));
+  });
+
+  const product = state.activeProduct;
+  const detailImage = productDialog.querySelector(".detail-product-image");
+
+  if (product && detailImage) {
+    const selectedImage =
+      product.shadeImages?.[state.selectedShade] || product.image;
+
+    detailImage.src = imageUrl(selectedImage, 800);
+    detailImage.alt = `${product.name} - ${state.selectedShade}`;
+  }
+
+  const selectedName = productDialog.querySelector(".selected-shade-name");
+  if (selectedName) {
+    selectedName.textContent = `Selected shade: ${state.selectedShade}`;
+  }
+}
+
+	
 
 	if (event.target.closest("#detailAdd") && state.activeProduct) {
 		const quantity = productDialog.querySelector("#detailQuantity").value;
@@ -1726,7 +1766,7 @@ document.addEventListener("click", (event) => {
 	}
 });
 
-document.querySelector("#checkoutForm").addEventListener("submit", (event) => {
+document.querySelector("#checkoutForm").addEventListener("submit", async (event) => {
 	event.preventDefault();
 
 	const form = event.currentTarget;
@@ -1774,7 +1814,51 @@ document.querySelector("#checkoutForm").addEventListener("submit", (event) => {
 		feedback.textContent = "WhatsApp ordering is not configured yet. Add the store owner's real Indian WhatsApp number in products.js.";
 		return;
 	}
+// Save logged-in customer's details to Supabase
+if (customerSession?.user && supabaseClient) {
+  const { error: profileError } = await supabaseClient
+    .from("customer_profiles")
+    .upsert(
+      {
+        id: customerSession.user.id,
+        full_name: form.customerName.value.trim(),
+        phone: form.customerPhone.value.trim(),
+        address: form.customerAddress.value.trim(),
+        pincode: form.customerPin.value.trim(),
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: "id" }
+    );
 
+  if (profileError) {
+    console.error("Customer profile save error:", profileError);
+    feedback.textContent =
+      "Details save nahi hui. Please try again.";
+    return;
+  }
+}
+// Save customer details to Supabase
+if (customerSession?.user && supabaseClient) {
+  const { error: profileError } = await supabaseClient
+    .from("customer_profiles")
+    .upsert(
+      {
+        id: customerSession.user.id,
+        full_name: form.customerName.value.trim(),
+        phone: form.customerPhone.value.trim(),
+        address: form.customerAddress.value.trim(),
+        pincode: form.customerPin.value.trim(),
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: "id" }
+    );
+
+  if (profileError) {
+    console.error("Customer profile save error:", profileError);
+    feedback.textContent = "Details save nahi hui. Please try again.";
+    return;
+  }
+}
 	const message = makeWhatsAppMessage(new FormData(form));
 
 	button.disabled = true;
@@ -1799,3 +1883,117 @@ document.querySelector("#checkoutForm").addEventListener("submit", (event) => {
 document.querySelector("#customerPhone").addEventListener("input", (event) => {
 	event.currentTarget.setCustomValidity("");
 });
+
+
+/* Customer Google Login and account status */
+const customerLoginButton = document.querySelector("#customerLoginButton");
+let customerSession = null;
+
+const customerAccountLabel = document.createElement("span");
+customerAccountLabel.id = "customerAccountLabel";
+customerAccountLabel.style.margin = "8px";
+customerAccountLabel.style.fontSize = "13px";
+customerAccountLabel.style.display = "inline-block";
+
+if (customerLoginButton) {
+  customerLoginButton.insertAdjacentElement("beforebegin", customerAccountLabel);
+}
+
+function updateCustomerLoginUI(session) {
+  customerSession = session;
+
+  if (!customerLoginButton) return;
+
+  if (session?.user) {
+    customerAccountLabel.textContent =
+      "Logged in: " + (session.user.email || "Google account");
+    customerLoginButton.textContent = "Logout";
+  } else {
+    customerAccountLabel.textContent = "";
+    customerLoginButton.textContent = "Login";
+  }
+}
+
+if (supabaseClient && customerLoginButton) {
+  supabaseClient.auth.getSession().then(({ data, error }) => {
+    if (error) {
+      console.error("Session check failed:", error);
+      return;
+    }
+
+    updateCustomerLoginUI(data.session);
+  });
+
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
+  updateCustomerLoginUI(session);
+
+  if (session?.user) {
+    setTimeout(() => {
+      loadCustomerProfile(session.user);
+    }, 0);
+  }
+});
+  /* Load saved customer profile from Supabase */
+async function loadCustomerProfile(user) {
+  if (!user || !supabaseClient) return;
+
+  const { data, error } = await supabaseClient
+    .from("customer_profiles")
+    .select("full_name, phone, address, city, pincode")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Customer profile load error:", error);
+    return;
+  }
+
+  if (!data) return;
+
+  const nameField = document.querySelector("#customerName");
+  const phoneField = document.querySelector("#customerPhone");
+  const addressField = document.querySelector("#customerAddress");
+  const pinField = document.querySelector("#customerPin");
+
+  if (nameField && data.full_name) nameField.value = data.full_name;
+  if (phoneField && data.phone) phoneField.value = data.phone;
+
+  if (addressField && data.address) {
+    addressField.value = data.address;
+  }
+
+  if (pinField && data.pincode) {
+    pinField.value = data.pincode;
+  }
+}
+
+  customerLoginButton.addEventListener("click", async () => {
+    customerLoginButton.disabled = true;
+
+    try {
+      if (customerSession?.user) {
+        const { error } = await supabaseClient.auth.signOut();
+        if (error) throw error;
+
+        updateCustomerLoginUI(null);
+        showToast("You have logged out.");
+      } else {
+        const { error } = await supabaseClient.auth.signInWithOAuth({
+  provider: "google",
+  options: {
+    queryParams: {
+      prompt: "select_account"
+    },
+    redirectTo: window.location.origin + window.location.pathname
+  }
+});
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error("Customer login error:", error);
+      showToast("Login nahi hua. Please try again.");
+    } finally {
+      customerLoginButton.disabled = false;
+    }
+  });
+}
