@@ -127,9 +127,34 @@ window.DEMO_PRODUCTS = [
     originalPrice: 250,
     popularity: 76,
     image: "photo-1604654894610-df63bc536371",
-    shades: ["Petal Pink", "Cherry Red", "Mauve Moment"],
+    shades: [
+  "01 - Petal Pink",
+  "02 - Cherry Red",
+  "03 - Mauve Moment"
+],
     description: "A demo nail-colour listing with a few sample shade names. Product details and prices are not verified."
   },
+
+{
+  id: 100,
+  brand: "MARS",
+  name: "Cosmic Hues Nail Paint",
+  category: "Nails",
+  stockStatus: "in-stock",
+  stockQuantity: 10,
+  price: 199,
+  originalPrice: 249,
+  popularity: 80,
+  image: "assets/mars-mauve.jpg",
+  shades: ["Mauve", "Black", "Pink"],
+  shadeImages: {
+    "Mauve": "assets/mars-mauve.jpg",
+    "Black": "assets/mars-black.jpg",
+    "Pink": "assets/mars-pink.jpg"
+  },
+  description: "MARS Cosmic Hues Nail Paint. Choose your favourite shade."
+},
+
   {
     id: 11,
     brand: "PAC",
