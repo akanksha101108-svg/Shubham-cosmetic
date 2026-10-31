@@ -33,73 +33,70 @@
 
 	<main class="admin-shell page-width">
 		<section class="admin-panel-heading">
-			<p class="eyebrow">AUTHORIZED STAFF & OWNER ACCESS</p>
-			<h1>Product Administration</h1>
-			<p>Securely manage the live cosmetics catalogue synchronized with Supabase.</p>
+			<p class="eyebrow">STORE OWNER &amp; MANAGEMENT CONSOLE</p>
+			<h1>Store Administration</h1>
+			<p>Secure management for products catalogue and customer orders synchronized with Supabase.</p>
 		</section>
 
 		<p class="admin-config-warning" id="configWarning" role="alert" hidden></p>
 
-		<section class="admin-auth-panel" id="loginPanel" aria-labelledby="loginTitle">
-			<div class="auth-box-header">
-				<span class="auth-badge">STORE OWNER ACCESS</span>
-				<h2 id="loginTitle">Admin Sign In</h2>
-				<p>Only the authorized store owner can access this dashboard.<br>Sign in using your verified Gmail account.</p>
+		<!-- Authorization Gate (Replaces separate admin login form) -->
+		<section class="admin-auth-gate" id="adminAuthGate">
+			<div class="auth-gate-card" id="gateLoadingCard">
+				<div class="gate-spinner" aria-hidden="true"></div>
+				<h3>Verifying Store Owner Authorization…</h3>
+				<p>Checking authenticated session with Supabase server security.</p>
 			</div>
 
-			<!-- Google OAuth (Primary — recommended for owner) -->
-			<button class="button button-google" id="adminGoogleBtn" type="button">
-				<svg class="google-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-					<path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17Z"/>
-					<path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24Z"/>
-					<path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15Z"/>
-					<path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"/>
-				</svg>
-				<span>Continue with Google</span>
-			</button>
-
-			<div class="auth-divider"><span>or sign in with Email OTP</span></div>
-
-			<!-- Email OTP Step 1: Request Code -->
-			<form class="auth-otp-form" id="adminOtpRequestForm">
-				<label class="field-label" for="adminEmail">Email / Gmail Address
-					<input id="adminEmail" name="email" type="email" autocomplete="email" placeholder="owner@gmail.com" required>
-				</label>
-				<button class="button button-dark auth-submit-btn" type="submit" id="adminSendOtpBtn">
-					<span>Send Verification Code</span>
-				</button>
-			</form>
-
-			<!-- Email OTP Step 2: Verify Code -->
-			<form class="auth-otp-form" id="adminOtpVerifyForm" hidden>
-				<div class="otp-sent-banner">
-					<span>✉️ Verification code sent to <strong id="adminOtpEmailTarget"></strong></span>
+			<div class="auth-gate-card" id="gateGuestCard" hidden>
+				<div class="gate-icon">🔒</div>
+				<span class="auth-badge">OWNER ACCESS ONLY</span>
+				<h2>Owner Authorization Required</h2>
+				<p>This management dashboard is restricted to the verified store owner (<strong>akanksha101108@gmail.com</strong>).</p>
+				<p class="gate-instruction">Please return to the main storefront and sign in using the <strong>Login</strong> button.</p>
+				<div class="gate-actions">
+					<a href="index.html" class="button button-dark">← Go to Storefront &amp; Sign In</a>
 				</div>
-				<label class="field-label" for="adminOtpCode">Enter 6-Digit Code
-					<input id="adminOtpCode" name="otp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="123456" autocomplete="one-time-code" required>
-				</label>
-				<button class="button button-dark auth-submit-btn" type="submit" id="adminVerifyOtpBtn">
-					<span>Verify &amp; Sign In</span>
-				</button>
-				<div class="otp-action-links">
-					<button type="button" class="text-link-btn" id="adminResendOtp">Resend Code</button>
-					<span class="sep">·</span>
-					<button type="button" class="text-link-btn" id="adminChangeEmail">Use different email</button>
-				</div>
-			</form>
+			</div>
 
-			<p class="form-feedback" id="loginFeedback" role="status" aria-live="polite"></p>
+			<div class="auth-gate-card" id="gateDeniedCard" hidden>
+				<div class="gate-icon">🚫</div>
+				<span class="auth-badge badge-denied">ACCESS DENIED</span>
+				<h2>Customer Account Detected</h2>
+				<p>You are signed in as <strong id="gateCustomerEmail">user@example.com</strong>.</p>
+				<p class="gate-instruction">This account is authorized for <strong>Customer Mode</strong> only. Management controls are exclusively reserved for the store owner (<strong>akanksha101108@gmail.com</strong>).</p>
+				<div class="gate-actions">
+					<a href="index.html" class="button button-outline">← Return to Storefront Shopping</a>
+					<button type="button" class="button button-dark" id="gateSignOutBtn">Sign Out &amp; Switch Account</button>
+				</div>
+			</div>
 		</section>
 
 		<section class="secure-admin" id="secureAdmin" hidden>
 			<div class="admin-toolbar">
 				<div>
-					<p class="eyebrow">LIVE SUPABASE CATALOGUE</p>
-					<h2>Products Dashboard</h2>
+					<p class="eyebrow">👑 VERIFIED STORE OWNER CONSOLE</p>
+					<h2>Store Management Dashboard</h2>
 					<p id="adminUserLabel" class="admin-user-pill"></p>
 				</div>
-				<button class="button button-outline sign-out-btn" id="signOutButton" type="button">Sign Out</button>
+				<div class="admin-toolbar-actions">
+					<a href="index.html" class="button button-outline" target="_blank" rel="noopener">Preview Live Store ↗</a>
+					<button class="button button-outline sign-out-btn" id="signOutButton" type="button">Sign Out</button>
+				</div>
 			</div>
+
+			<!-- Admin Main Navigation Tabs -->
+			<div class="admin-nav-tabs" role="tablist">
+				<button class="admin-nav-tab active" type="button" id="adminTabBtnProducts" data-admin-tab="adminSectionProducts">
+					🛍️ Products Catalogue <span class="tab-badge" id="productsCountBadge">0</span>
+				</button>
+				<button class="admin-nav-tab" type="button" id="adminTabBtnOrders" data-admin-tab="adminSectionOrders">
+					📦 Customer Orders <span class="tab-badge" id="ordersCountBadge">0</span>
+				</button>
+			</div>
+
+			<!-- ================= SECTION 1: PRODUCTS ================= -->
+			<div class="admin-tab-section active" id="adminSectionProducts">
 
 			<!-- Admin Stats Overview -->
 			<div class="admin-stats-grid">
@@ -262,7 +259,58 @@
 				</div>
 
 				<div id="secureProductList"></div>
-			</section>
+				</section>
+			</div>
+
+			<!-- ================= SECTION 2: CUSTOMER ORDERS ================= -->
+			<div class="admin-tab-section" id="adminSectionOrders" hidden>
+				<!-- Orders Stats Overview -->
+				<div class="admin-stats-grid orders-stats-grid">
+					<div class="admin-stat-card">
+						<span class="stat-number" id="statTotalOrders">0</span>
+						<span class="stat-label">Total Orders</span>
+					</div>
+					<div class="admin-stat-card stat-pending">
+						<span class="stat-number" id="statPendingOrders">0</span>
+						<span class="stat-label">Pending</span>
+					</div>
+					<div class="admin-stat-card stat-confirmed">
+						<span class="stat-number" id="statConfirmedOrders">0</span>
+						<span class="stat-label">Confirmed</span>
+					</div>
+					<div class="admin-stat-card stat-dispatched">
+						<span class="stat-number" id="statDispatchedOrders">0</span>
+						<span class="stat-label">Dispatched</span>
+					</div>
+					<div class="admin-stat-card stat-delivered">
+						<span class="stat-number" id="statDeliveredOrders">0</span>
+						<span class="stat-label">Delivered</span>
+					</div>
+				</div>
+
+				<div class="orders-management-header">
+					<div>
+						<h3>Customer Order Management</h3>
+						<p class="section-subtext">Review customer details, order items, and update fulfilment status in Supabase.</p>
+					</div>
+					<div class="orders-management-tools">
+						<input id="adminOrderSearchInput" type="search" placeholder="Search by customer name, phone, or order ID…" class="admin-search-input">
+						<select id="adminOrderStatusFilter" class="admin-filter-select">
+							<option value="All">All Statuses</option>
+							<option value="Pending">Pending</option>
+							<option value="Confirmed">Confirmed</option>
+							<option value="Dispatched">Dispatched</option>
+							<option value="Delivered">Delivered</option>
+							<option value="Cancelled">Cancelled</option>
+						</select>
+						<button class="button button-outline btn-refresh" id="refreshAdminOrdersBtn" type="button">↻ Refresh Orders</button>
+					</div>
+				</div>
+
+				<div class="admin-orders-container" id="adminOrdersContainer">
+					<p class="loading-orders-msg">Loading customer orders from Supabase…</p>
+				</div>
+			</div>
 		</section>
 	</main>
 </body>

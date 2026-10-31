@@ -2188,3 +2188,403 @@ dialog::backdrop {
 	transition: background 0.2s;
 }
 .network-retry-notice button:hover { background: #e65100; }
+
+/* ═══════════════════════════════════════════════════════════════
+   CUSTOMER PORTAL: TABS, ORDERS & ACCOUNT SETTINGS
+   ═══════════════════════════════════════════════════════════════ */
+
+.profile-dialog {
+	width: min(580px, 96vw);
+	border: none;
+	border-radius: 20px;
+	padding: 0;
+	box-shadow: 0 24px 64px rgba(0,0,0,0.2);
+	background: #fff;
+	overflow: hidden;
+}
+
+.profile-dialog::backdrop {
+	background: rgba(0,0,0,0.5);
+	backdrop-filter: blur(4px);
+}
+
+.profile-dialog-header {
+	padding: 24px 28px 16px;
+	background: linear-gradient(135deg, #fff0f5 0%, #ffe4ec 100%);
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	border-bottom: 1px solid #ffd1dc;
+}
+
+.profile-dialog-header h2 {
+	margin: 0;
+	font-family: var(--serif, 'Playfair Display', serif);
+	font-size: 24px;
+	color: #2b1f23;
+}
+
+.profile-status-bar {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 14px 28px;
+	background: #fff8fa;
+	border-bottom: 1px solid #fce4ec;
+}
+
+.profile-avatar {
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	background: #f8bbd0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 22px;
+	color: #c2185b;
+	flex-shrink: 0;
+}
+
+.profile-status-info {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.profile-email {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 700;
+	color: #333;
+}
+
+.profile-badges-row {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.profile-badge {
+	font-size: 11px;
+	font-weight: 700;
+	padding: 2px 8px;
+	border-radius: 12px;
+	background: #e8f5e9;
+	color: #2e7d32;
+}
+
+.profile-badge.badge-owner {
+	background: linear-gradient(135deg, #e91e8c, #c2185b);
+	color: #fff;
+}
+
+.profile-badge.guest {
+	background: #f5f5f5;
+	color: #777;
+}
+
+/* Account Navigation Tabs */
+.account-nav-tabs {
+	display: flex;
+	border-bottom: 1.5px solid #f0e0e6;
+	background: #fafafa;
+	overflow-x: auto;
+}
+
+.account-tab {
+	flex: 1;
+	padding: 12px 14px;
+	border: none;
+	background: transparent;
+	font-size: 13.5px;
+	font-weight: 600;
+	color: #666;
+	cursor: pointer;
+	border-bottom: 3px solid transparent;
+	transition: color 0.2s, border-color 0.2s, background 0.2s;
+	white-space: nowrap;
+	text-align: center;
+}
+
+.account-tab:hover {
+	color: #c2185b;
+	background: #fff0f5;
+}
+
+.account-tab.active {
+	color: #c2185b;
+	border-bottom-color: #e91e8c;
+	background: #fff;
+	font-weight: 700;
+}
+
+.tab-count-pill {
+	display: inline-block;
+	background: #e91e8c;
+	color: #fff;
+	font-size: 11px;
+	padding: 1px 6px;
+	border-radius: 10px;
+	margin-left: 4px;
+}
+
+/* Tab Panels */
+.profile-content {
+	padding: 24px 28px 28px;
+	max-height: 70vh;
+	overflow-y: auto;
+}
+
+.tab-panel {
+	display: none;
+}
+
+.tab-panel.active {
+	display: block;
+}
+
+/* My Orders Tab */
+.orders-section-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 16px;
+}
+
+.orders-section-header h3 {
+	margin: 0;
+	font-size: 17px;
+	color: #2b1f23;
+}
+
+.btn-refresh-orders {
+	font-size: 12px;
+	padding: 5px 12px;
+	border-radius: 16px;
+	color: #c2185b;
+	border-color: #f48fb1;
+}
+
+.customer-orders-list {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.customer-order-card {
+	border: 1.5px solid #f0e0e6;
+	border-radius: 14px;
+	padding: 16px;
+	background: #fff;
+	transition: box-shadow 0.2s;
+}
+
+.customer-order-card:hover {
+	box-shadow: 0 4px 14px rgba(194, 24, 91, 0.08);
+}
+
+.order-card-top {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding-bottom: 10px;
+	border-bottom: 1px dashed #f0d0dc;
+	margin-bottom: 10px;
+}
+
+.order-number {
+	font-size: 13.5px;
+	font-weight: 700;
+	color: #2b1f23;
+	display: block;
+}
+
+.order-timestamp {
+	font-size: 11.5px;
+	color: #888;
+}
+
+/* Order Status Badges */
+.customer-status-badge, .order-status-badge {
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.5px;
+	padding: 4px 10px;
+	border-radius: 14px;
+	text-transform: uppercase;
+}
+
+.status-pending {
+	background: #fff8e1;
+	color: #f57f17;
+	border: 1px solid #ffe082;
+}
+
+.status-confirmed {
+	background: #e3f2fd;
+	color: #1565c0;
+	border: 1px solid #90caf9;
+}
+
+.status-dispatched {
+	background: #f3e5f5;
+	color: #7b1fa2;
+	border: 1px solid #ce93d8;
+}
+
+.status-delivered {
+	background: #e8f5e9;
+	color: #2e7d32;
+	border: 1px solid #a5d6a7;
+}
+
+.status-cancelled {
+	background: #ffebee;
+	color: #c62828;
+	border: 1px solid #ef9a9a;
+}
+
+.customer-order-items {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 12px;
+}
+
+.customer-order-item-row {
+	display: flex;
+	justify-content: space-between;
+	font-size: 13px;
+	color: #444;
+}
+
+.item-meta strong {
+	color: #222;
+}
+
+.item-shade-tag {
+	font-size: 11px;
+	color: #c2185b;
+	margin-left: 4px;
+}
+
+.customer-order-card-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding-top: 10px;
+	border-top: 1px solid #f8e8ee;
+}
+
+.order-address-snippet small {
+	font-size: 11.5px;
+	color: #777;
+}
+
+.order-total-amount span {
+	font-size: 12px;
+	color: #666;
+	margin-right: 4px;
+}
+
+.order-total-amount strong {
+	font-size: 15px;
+	color: #c2185b;
+}
+
+.empty-orders-view {
+	text-align: center;
+	padding: 32px 16px;
+	color: #666;
+}
+
+.empty-orders-view .empty-icon {
+	font-size: 40px;
+	margin-bottom: 8px;
+	display: block;
+}
+
+.empty-orders-view h4 {
+	margin: 0 0 6px;
+	color: #333;
+}
+
+.empty-orders-view p {
+	font-size: 13px;
+	line-height: 1.5;
+	max-width: 320px;
+	margin: 0 auto 16px;
+}
+
+/* Saved Address Card */
+.saved-address-card {
+	border: 1.5px solid #f0e0e6;
+	border-radius: 14px;
+	padding: 20px;
+	background: #fff;
+}
+
+.address-card-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 10px;
+}
+
+.badge-default {
+	background: #e8f5e9;
+	color: #2e7d32;
+	font-size: 11px;
+	font-weight: 700;
+	padding: 2px 8px;
+	border-radius: 10px;
+}
+
+.address-text {
+	font-size: 14px;
+	color: #444;
+	line-height: 1.6;
+	margin-bottom: 16px;
+}
+
+.btn-edit-address {
+	font-size: 13px;
+}
+
+/* Settings Card */
+.settings-card {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.setting-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 16px;
+	border: 1px solid #f0e0e6;
+	border-radius: 12px;
+	background: #fff;
+}
+
+.setting-subtext {
+	font-size: 12.5px;
+	color: #777;
+	margin: 2px 0 0;
+}
+
+.status-verified-pill {
+	background: #e8f5e9;
+	color: #2e7d32;
+	font-size: 12px;
+	font-weight: 700;
+	padding: 3px 10px;
+	border-radius: 12px;
+}
+
+.btn-small {
+	padding: 6px 14px;
+	font-size: 12.5px;
+}

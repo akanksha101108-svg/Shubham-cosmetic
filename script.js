@@ -522,9 +522,10 @@
 		}
 	}
 
-	function makeWhatsAppMessage(formData) {
+	function makeWhatsAppMessage(formData, orderRef = "") {
 		const lines = [
 			`*Order Request — ${STORE_CONFIG.name}*`,
+			orderRef ? `*Order Reference:* ${orderRef}` : "",
 			`--------------------------------------`,
 			`*Customer Details:*`,
 			`• Name: ${formData.get("customerName")?.trim() || ""}`,
@@ -534,7 +535,7 @@
 			`• PIN Code: ${formData.get("customerPin")?.trim() || ""}`,
 			``,
 			`*Ordered Items:*`
-		];
+		].filter(Boolean);
 
 		state.cart.forEach((item, index) => {
 			const product = findProduct(item.id);
@@ -631,6 +632,21 @@
 		if (profAddress && profile.address) profAddress.value = profile.address;
 		if (profCity && profile.city) profCity.value = profile.city;
 		if (profPin && profile.pincode) profPin.value = profile.pincode;
+
+		// My Addresses tab display card
+		const displayAddr = document.querySelector("#displaySavedAddress");
+		if (displayAddr) {
+			if (profile.address) {
+				displayAddr.innerHTML = `
+					<strong>${escapeHtml(profile.full_name || "Customer")}</strong><br>
+					${escapeHtml(profile.address)}<br>
+					${escapeHtml(profile.city ? `${profile.city} - ` : "")}${escapeHtml(profile.pincode || "")}<br>
+					<span class="addr-phone">📱 Mobile: ${escapeHtml(profile.phone || "—")}</span>
+				`;
+			} else {
+				displayAddr.textContent = "No address saved yet. Update your details in My Profile.";
+			}
+		}
 	}
 
 	async function saveCustomerProfileData(profileData) {
@@ -664,6 +680,112 @@
 		}
 	}
 
+	async function loadCustomerOrders(user) {
+		const container = document.querySelector("#customerOrdersContainer");
+		const countPill = document.querySelector("#orderCountPill");
+		if (!container) return;
+
+		if (!user || !supabaseClient) {
+			container.innerHTML = `
+				<div class="empty-orders-view">
+					<p class="empty-icon">📦</p>
+					<h4>Sign In to View Orders</h4>
+					<p>Sign in to your account to review previous orders and check delivery status.</p>
+				</div>
+			`;
+			if (countPill) countPill.hidden = true;
+			return;
+		}
+
+		container.innerHTML = '<div class="orders-loading"><p>Loading your orders…</p></div>';
+
+		try {
+			// Strict RLS ensures this only returns orders for the authenticated user
+			const { data, error } = await supabaseClient
+				.from("orders")
+				.select("*")
+				.eq("user_id", user.id)
+				.order("created_at", { ascending: false });
+
+			if (error) throw error;
+
+			const orders = Array.isArray(data) ? data : [];
+
+			if (countPill) {
+				countPill.textContent = orders.length;
+				countPill.hidden = orders.length === 0;
+			}
+
+			if (!orders.length) {
+				container.innerHTML = `
+					<div class="empty-orders-view">
+						<p class="empty-icon">🛍️</p>
+						<h4>No Orders Yet</h4>
+						<p>You haven't placed any orders yet. When you order beauty essentials on WhatsApp, your order summary and status will appear here.</p>
+					</div>
+				`;
+				return;
+			}
+
+			container.innerHTML = orders.map((order) => {
+				const shortId = order.id ? order.id.slice(0, 8).toUpperCase() : "ORDER";
+				const dateStr = order.created_at ? new Date(order.created_at).toLocaleDateString("en-IN", {
+					day: "numeric",
+					month: "short",
+					year: "numeric"
+				}) : "Recent";
+
+				const statusClass = `status-${(order.status || 'pending').toLowerCase()}`;
+				const items = Array.isArray(order.items) ? order.items : [];
+
+				return `
+				<article class="customer-order-card">
+					<div class="order-card-top">
+						<div>
+							<span class="order-number">Order #SHUB-${escapeHtml(shortId)}</span>
+							<span class="order-timestamp">${escapeHtml(dateStr)}</span>
+						</div>
+						<span class="customer-status-badge ${statusClass}">${escapeHtml(order.status || 'Pending')}</span>
+					</div>
+
+					<div class="customer-order-items">
+						${items.map((it) => `
+							<div class="customer-order-item-row">
+								<span class="item-meta">
+									<strong>${escapeHtml(it.brand ? `${it.brand} - ` : "")}${escapeHtml(it.name || "Item")}</strong>
+									${it.shade ? `<span class="item-shade-tag">Shade: ${escapeHtml(it.shade)}</span>` : ""}
+								</span>
+								<span class="item-qty-price">${it.quantity || 1} × ${money.format(it.price || 0)}</span>
+							</div>
+						`).join("")}
+					</div>
+
+					<div class="customer-order-card-footer">
+						<div class="order-address-snippet">
+							<small>Delivering to: ${escapeHtml(order.customer_name)}, ${escapeHtml(order.customer_city || order.customer_address)}</small>
+						</div>
+						<div class="order-total-amount">
+							<span>Total:</span>
+							<strong>${money.format(order.subtotal || 0)}</strong>
+						</div>
+					</div>
+				</article>
+				`;
+			}).join("");
+		} catch (err) {
+			console.warn("Could not load customer orders:", err);
+			container.innerHTML = `
+				<div class="empty-orders-view">
+					<p>⚠️ Could not load orders right now.</p>
+					<button type="button" class="button button-outline btn-small" id="retryCustomerOrdersBtn">Try Again</button>
+				</div>
+			`;
+			document.querySelector("#retryCustomerOrdersBtn")?.addEventListener("click", () => {
+				loadCustomerOrders(user);
+			});
+		}
+	}
+
 	function updateCustomerLoginUI(session) {
 		state.customerSession = session;
 
@@ -671,8 +793,11 @@
 
 		const profileEmail = document.querySelector("#profileUserEmail");
 		const profileBadge = document.querySelector("#profileBadge");
+		const profileOwnerBadge = document.querySelector("#profileOwnerBadge");
 		const ownerTopBar = document.getElementById("ownerTopBar");
 		const ownerDashLink = document.getElementById("ownerDashLink");
+		const settingsEmail = document.querySelector("#settingsDisplayEmail");
+		const ownerSettingItem = document.querySelector("#ownerAdminSettingItem");
 
 		if (session?.user) {
 			const displayName = session.user.user_metadata?.full_name ||
@@ -683,28 +808,35 @@
 			customerLoginButton.title = `Signed in as ${session.user.email}`;
 
 			if (profileEmail) profileEmail.textContent = session.user.email;
+			if (settingsEmail) settingsEmail.textContent = session.user.email;
+
 			if (profileBadge) {
 				profileBadge.textContent = "Verified Account";
 				profileBadge.classList.remove("guest");
 			}
 
 			loadCustomerProfile(session.user);
+			loadCustomerOrders(session.user);
 
-			// Check server-side admin status
+			// Check server-side admin status via RPC
 			checkIsStoreAdmin(session.user).then((isAdmin) => {
 				if (isAdmin) {
-					// Owner Mode
+					// 👑 Store Owner Mode Activated
 					if (ownerTopBar) ownerTopBar.hidden = false;
 					if (ownerDashLink) ownerDashLink.hidden = false;
-					if (customerButtonText) customerButtonText.textContent = "Owner";
+					if (customerButtonText) customerButtonText.textContent = "👑 Owner (Akanksha)";
 					if (profileBadge) {
 						profileBadge.textContent = "👑 Store Owner";
 						profileBadge.classList.remove("guest");
 					}
+					if (profileOwnerBadge) profileOwnerBadge.hidden = false;
+					if (ownerSettingItem) ownerSettingItem.hidden = false;
 				} else {
-					// Customer Mode
+					// Customer Mode Only
 					if (ownerTopBar) ownerTopBar.hidden = true;
 					if (ownerDashLink) ownerDashLink.hidden = true;
+					if (profileOwnerBadge) profileOwnerBadge.hidden = true;
+					if (ownerSettingItem) ownerSettingItem.hidden = true;
 				}
 			});
 		} else {
@@ -713,13 +845,21 @@
 			customerLoginButton.title = "Customer Login";
 
 			if (profileEmail) profileEmail.textContent = "Not logged in";
+			if (settingsEmail) settingsEmail.textContent = "—";
 			if (profileBadge) {
 				profileBadge.textContent = "Guest";
 				profileBadge.classList.add("guest");
 			}
 
+			if (profileOwnerBadge) profileOwnerBadge.hidden = true;
+			if (ownerSettingItem) ownerSettingItem.hidden = true;
 			if (ownerTopBar) ownerTopBar.hidden = true;
 			if (ownerDashLink) ownerDashLink.hidden = true;
+
+			const countPill = document.querySelector("#orderCountPill");
+			if (countPill) countPill.hidden = true;
+			const ordersContainer = document.querySelector("#customerOrdersContainer");
+			if (ordersContainer) ordersContainer.innerHTML = '<p class="empty-orders-view">Sign in to view your orders.</p>';
 		}
 	}
 
@@ -1468,8 +1608,54 @@
 					pincode: pin
 				});
 
-				// WhatsApp handoff
-				const message = makeWhatsAppMessage(new FormData(form));
+				// Persist order record to Supabase orders table
+				let orderRef = "";
+				if (supabaseClient) {
+					try {
+						const orderItems = state.cart.map((item) => {
+							const p = findProduct(item.id);
+							return {
+								id: item.id,
+								name: p?.name || "Product",
+								brand: p?.brand || "",
+								price: p?.price || 0,
+								shade: item.shade || "",
+								quantity: item.quantity,
+								image: p?.image || ""
+							};
+						});
+
+						const { data: orderData, error: orderErr } = await supabaseClient
+							.from("orders")
+							.insert({
+								user_id: state.customerSession?.user?.id || null,
+								customer_name: name,
+								customer_phone: phone,
+								customer_address: address,
+								customer_city: city,
+								customer_pincode: pin,
+								order_notes: form.orderNotes?.value?.trim() || "",
+								items: orderItems,
+								subtotal: cartSubtotal(),
+								status: "Pending"
+							})
+							.select("id")
+							.maybeSingle();
+
+						if (!orderErr && orderData?.id) {
+							orderRef = `#SHUB-${orderData.id.slice(0, 8).toUpperCase()}`;
+							// Reload orders if user is logged in
+							if (state.customerSession?.user) {
+								loadCustomerOrders(state.customerSession.user);
+							}
+						}
+					} catch (orderInsertErr) {
+						console.warn("Notice: order could not be persisted to Supabase database:", orderInsertErr);
+					}
+				}
+
+				// WhatsApp handoff with order reference
+				const message = makeWhatsAppMessage(new FormData(form), orderRef);
 
 				if (button) {
 					button.disabled = true;
@@ -1478,7 +1664,7 @@
 				}
 
 				if (feedback) {
-					feedback.textContent = "Order summary ready! Opening WhatsApp to connect with Shubham Store…";
+					feedback.textContent = `Order summary ready${orderRef ? ` (${orderRef})` : ""}! Opening WhatsApp to connect with Shubham Store…`;
 					feedback.classList.add("success");
 				}
 
@@ -1488,6 +1674,12 @@
 
 					window.open(chatUrl.toString(), "_blank", "noopener,noreferrer");
 
+					// Clear bag after successful order placement
+					state.cart = [];
+					renderCart();
+
+					if (cartDialog) cartDialog.close();
+
 					if (button) {
 						button.disabled = false;
 						const span = button.querySelector("span");
@@ -1496,6 +1688,50 @@
 				}, 400);
 			});
 		}
+
+		// ── Account Portal Navigation Tabs ────────────────────────────────────
+		setupAccountTabs();
+	}
+
+	function setupAccountTabs() {
+		const accountTabs = document.querySelectorAll(".account-tab");
+		const tabPanels = document.querySelectorAll(".tab-panel");
+
+		accountTabs.forEach((tab) => {
+			tab.addEventListener("click", () => {
+				const targetId = tab.dataset.tab;
+				accountTabs.forEach((t) => t.classList.remove("active"));
+				tabPanels.forEach((p) => {
+					p.classList.remove("active");
+					p.hidden = true;
+				});
+
+				tab.classList.add("active");
+				const targetPanel = document.getElementById(targetId);
+				if (targetPanel) {
+					targetPanel.classList.add("active");
+					targetPanel.hidden = false;
+				}
+
+				// If switching to orders tab, refresh user orders
+				if (targetId === "tabOrders" && state.customerSession?.user) {
+					loadCustomerOrders(state.customerSession.user);
+				}
+			});
+		});
+
+		// Switch to Edit Address button in Tab 3
+		document.querySelector("#switchToEditAddressBtn")?.addEventListener("click", () => {
+			document.querySelector("#tabBtnProfile")?.click();
+			document.querySelector("#profileAddress")?.focus();
+		});
+
+		// Refresh orders button in Tab 2
+		document.querySelector("#refreshOrdersBtn")?.addEventListener("click", () => {
+			if (state.customerSession?.user) {
+				loadCustomerOrders(state.customerSession.user);
+			}
+		});
 	}
 
 	function initializeAuth() {

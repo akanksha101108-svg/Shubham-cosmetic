@@ -3,20 +3,30 @@
     const CONFIG = window.SUPABASE_CONFIG || {};
     const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 
-    const loginPanel = document.querySelector("#loginPanel");
+    const adminAuthGate = document.querySelector("#adminAuthGate");
+    const gateLoadingCard = document.querySelector("#gateLoadingCard");
+    const gateGuestCard = document.querySelector("#gateGuestCard");
+    const gateDeniedCard = document.querySelector("#gateDeniedCard");
+    const gateCustomerEmail = document.querySelector("#gateCustomerEmail");
+    const gateSignOutBtn = document.querySelector("#gateSignOutBtn");
     const secureAdmin = document.querySelector("#secureAdmin");
     const configWarning = document.querySelector("#configWarning");
 
     let client = null;
     let currentUser = null;
     let products = [];
+    let adminOrders = [];
     let editingProduct = null;
     let previewRows = [];
 
-    // Filters & Search
+    // Filters & Search for Products
     let searchQuery = "";
     let selectedCategoryFilter = "All";
     let selectedStatusFilter = "All";
+
+    // Filters & Search for Orders
+    let orderSearchQuery = "";
+    let selectedOrderStatusFilter = "All";
 
     function setMessage(element, message, success = false) {
         if (!element) return;
@@ -594,155 +604,277 @@
         }
     }
 
-    // ── Admin Authentication: Google OAuth ──────────────────────────────────
+    // ── Authorization Gate (One Login, Single Source of Truth) ─────────────
 
-    function handleAdminGoogleLogin() {
-        const feedback = document.querySelector("#loginFeedback");
+    function showGateLoading() {
+        if (adminAuthGate) adminAuthGate.hidden = false;
+        if (gateLoadingCard) gateLoadingCard.hidden = false;
+        if (gateGuestCard) gateGuestCard.hidden = true;
+        if (gateDeniedCard) gateDeniedCard.hidden = true;
+        if (secureAdmin) secureAdmin.hidden = true;
+    }
+
+    function showGateGuest() {
+        if (adminAuthGate) adminAuthGate.hidden = false;
+        if (gateLoadingCard) gateLoadingCard.hidden = true;
+        if (gateGuestCard) gateGuestCard.hidden = false;
+        if (gateDeniedCard) gateDeniedCard.hidden = true;
+        if (secureAdmin) secureAdmin.hidden = true;
+    }
+
+    function showGateDenied(userEmail) {
+        if (adminAuthGate) adminAuthGate.hidden = false;
+        if (gateLoadingCard) gateLoadingCard.hidden = true;
+        if (gateGuestCard) gateGuestCard.hidden = true;
+        if (gateDeniedCard) gateDeniedCard.hidden = false;
+        if (gateCustomerEmail) gateCustomerEmail.textContent = userEmail || "Authenticated User";
+        if (secureAdmin) secureAdmin.hidden = true;
+    }
+
+    async function showSecureAdmin(user) {
+        currentUser = user;
+        if (adminAuthGate) adminAuthGate.hidden = true;
+        if (secureAdmin) secureAdmin.hidden = false;
+
+        const userLabel = document.querySelector("#adminUserLabel");
+        if (userLabel) userLabel.textContent = `👑 ${user.email} (Owner)`;
+
+        // Load both catalogues and orders
+        await Promise.all([loadProducts(), loadAdminOrders()]);
+    }
+
+    async function verifyAdminAccess() {
+        showGateLoading();
+
         if (!client) {
-            setMessage(feedback, "⚠️ Cannot connect to the server. The Supabase project may be paused.");
+            showGateGuest();
             return;
         }
 
-        setMessage(feedback, "Redirecting to Google sign-in…");
+        try {
+            const { data: { session }, error } = await client.auth.getSession();
+            if (error || !session?.user) {
+                showGateGuest();
+                return;
+            }
 
-        const redirectTo = window.location.origin + window.location.pathname;
-        client.auth.signInWithOAuth({
-            provider: "google",
-            options: {
-                queryParams: { prompt: "select_account" },
-                redirectTo
-            }
-        }).catch((err) => {
-            console.error("Admin Google OAuth error:", err);
-            const msg = err?.message || "";
-            if (msg.toLowerCase().includes("fetch") || msg.toLowerCase().includes("network")) {
-                setMessage(feedback, "⚠️ Cannot reach the server. Your Supabase project may be paused — resume it at app.supabase.com.");
+            // Verify with server RPC (is_store_admin)
+            const isAdmin = await requireAdmin(session.user).catch(() => false);
+            if (isAdmin) {
+                await showSecureAdmin(session.user);
             } else {
-                setMessage(feedback, `Google sign-in failed: ${msg}`);
+                showGateDenied(session.user.email);
             }
+        } catch (err) {
+            console.error("verifyAdminAccess error:", err);
+            showGateGuest();
+        }
+    }
+
+    // ── Customer Orders Management ──────────────────────────────────────────
+
+    async function loadAdminOrders() {
+        if (!client) return;
+
+        const container = document.querySelector("#adminOrdersContainer");
+        if (container) {
+            container.innerHTML = '<p class="loading-orders-msg">Loading customer orders from Supabase…</p>';
+        }
+
+        try {
+            const { data, error } = await client
+                .from("orders")
+                .select("*")
+                .order("created_at", { ascending: false });
+
+            if (error) throw error;
+
+            adminOrders = Array.isArray(data) ? data : [];
+            updateOrderStats();
+            renderAdminOrders();
+        } catch (err) {
+            console.error("loadAdminOrders error:", err);
+            if (container) {
+                container.innerHTML = `
+                    <div class="empty-orders-card error">
+                        <p>⚠️ Could not load customer orders: ${esc(err.message || "Network error")}</p>
+                        <button type="button" class="button button-outline" id="retryAdminOrdersBtn">Retry Loading</button>
+                    </div>
+                `;
+                document.querySelector("#retryAdminOrdersBtn")?.addEventListener("click", loadAdminOrders);
+            }
+        }
+    }
+
+    function updateOrderStats() {
+        const total = adminOrders.length;
+        const pending = adminOrders.filter(o => o.status === "Pending").length;
+        const confirmed = adminOrders.filter(o => o.status === "Confirmed").length;
+        const dispatched = adminOrders.filter(o => o.status === "Dispatched").length;
+        const delivered = adminOrders.filter(o => o.status === "Delivered").length;
+
+        const statTotal = document.querySelector("#statTotalOrders");
+        const statPending = document.querySelector("#statPendingOrders");
+        const statConfirmed = document.querySelector("#statConfirmedOrders");
+        const statDispatched = document.querySelector("#statDispatchedOrders");
+        const statDelivered = document.querySelector("#statDeliveredOrders");
+        const countBadge = document.querySelector("#ordersCountBadge");
+
+        if (statTotal) statTotal.textContent = total;
+        if (statPending) statPending.textContent = pending;
+        if (statConfirmed) statConfirmed.textContent = confirmed;
+        if (statDispatched) statDispatched.textContent = dispatched;
+        if (statDelivered) statDelivered.textContent = delivered;
+        if (countBadge) countBadge.textContent = total;
+
+        const prodBadge = document.querySelector("#productsCountBadge");
+        if (prodBadge) prodBadge.textContent = products.length;
+    }
+
+    function filteredAdminOrders() {
+        const query = (orderSearchQuery || "").trim().toLowerCase();
+        return adminOrders.filter(order => {
+            const matchesStatus = selectedOrderStatusFilter === "All" || order.status === selectedOrderStatusFilter;
+            const searchField = `${order.id} ${order.customer_name} ${order.customer_phone} ${order.customer_city} ${order.customer_pincode} ${order.order_notes || ""}`.toLowerCase();
+            const matchesQuery = !query || searchField.includes(query);
+            return matchesStatus && matchesQuery;
         });
     }
 
-    // ── Admin Authentication: Email OTP ──────────────────────────────────────
+    function renderAdminOrders() {
+        const container = document.querySelector("#adminOrdersContainer");
+        if (!container) return;
 
-    let adminOtpEmail = "";
+        const filtered = filteredAdminOrders();
 
-    async function handleAdminOtpRequest(event) {
-        event.preventDefault();
-        const feedback = document.querySelector("#loginFeedback");
-        const emailInput = document.querySelector("#adminEmail");
-        const btn = document.querySelector("#adminSendOtpBtn");
-        const email = emailInput?.value.trim();
-
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            setMessage(feedback, "Please enter a valid email address.");
+        if (!filtered.length) {
+            container.innerHTML = `
+                <div class="empty-orders-card">
+                    <p class="empty-mark">📦</p>
+                    <h4>No Customer Orders Found</h4>
+                    <p class="section-subtext">${adminOrders.length === 0 ? "No orders have been placed yet. When customers check out on WhatsApp, their orders are automatically recorded here." : "No orders match the current filter criteria."}</p>
+                </div>
+            `;
             return;
         }
 
-        if (!client) {
-            setMessage(feedback, "⚠️ Cannot connect to the server. The Supabase project may be paused.");
-            return;
-        }
+        container.innerHTML = filtered.map(order => {
+            const dateStr = order.created_at ? new Date(order.created_at).toLocaleString("en-IN", {
+                dateStyle: "medium",
+                timeStyle: "short"
+            }) : "Recent";
 
-        setMessage(feedback, "");
-        if (btn) { btn.disabled = true; btn.querySelector("span").textContent = "Sending…"; }
+            const shortId = order.id ? order.id.slice(0, 8).toUpperCase() : "ORDER";
+            const items = Array.isArray(order.items) ? order.items : [];
+            const cleanPhone = (order.customer_phone || "").replace(/\D/g, "");
+            const waNumber = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
+
+            return `
+            <article class="admin-order-card" data-order-card-id="${esc(order.id)}">
+                <div class="order-card-header">
+                    <div class="order-header-meta">
+                        <span class="order-ref-pill">#SHUB-${esc(shortId)}</span>
+                        <span class="order-date">${esc(dateStr)}</span>
+                    </div>
+                    <div class="order-status-wrap">
+                        <label class="status-select-label" for="status-${esc(order.id)}">Status:</label>
+                        <select class="admin-status-dropdown status-${(order.status || 'pending').toLowerCase()}" data-order-status-select="${esc(order.id)}" id="status-${esc(order.id)}">
+                            <option value="Pending" ${order.status === "Pending" ? "selected" : ""}>⏳ Pending</option>
+                            <option value="Confirmed" ${order.status === "Confirmed" ? "selected" : ""}>✓ Confirmed</option>
+                            <option value="Dispatched" ${order.status === "Dispatched" ? "selected" : ""}>🚚 Dispatched</option>
+                            <option value="Delivered" ${order.status === "Delivered" ? "selected" : ""}>🎁 Delivered</option>
+                            <option value="Cancelled" ${order.status === "Cancelled" ? "selected" : ""}>✕ Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="order-card-body">
+                    <div class="customer-info-box">
+                        <h4 class="customer-name">${esc(order.customer_name)}</h4>
+                        <p class="customer-phone">
+                            📱 <strong>${esc(order.customer_phone)}</strong>
+                            <a href="https://wa.me/${esc(waNumber)}" target="_blank" rel="noopener" class="wa-contact-link" title="Contact customer on WhatsApp">Message Customer ↗</a>
+                        </p>
+                        <p class="customer-address">📍 ${esc(order.customer_address)}, ${esc(order.customer_city)} - ${esc(order.customer_pincode)}</p>
+                        ${order.order_notes ? `<p class="customer-notes">📝 <em>Notes:</em> ${esc(order.order_notes)}</p>` : ""}
+                    </div>
+
+                    <div class="order-items-box">
+                        <h5>Order Items (${items.reduce((acc, it) => acc + (it.quantity || 1), 0)})</h5>
+                        <div class="order-items-table">
+                            ${items.map(it => `
+                                <div class="order-item-row">
+                                    <span class="item-name">${esc(it.brand ? `${it.brand} - ` : "")}${esc(it.name || "Product")} ${it.shade ? `<small class="item-shade">(${esc(it.shade)})</small>` : ""}</span>
+                                    <span class="item-qty">× ${esc(it.quantity || 1)}</span>
+                                    <span class="item-price">${money.format((it.price || 0) * (it.quantity || 1))}</span>
+                                </div>
+                            `).join("")}
+                        </div>
+                        <div class="order-subtotal-row">
+                            <strong>Subtotal Amount:</strong>
+                            <strong class="order-total-price">${money.format(order.subtotal || 0)}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="order-card-footer">
+                    <button type="button" class="btn-delete-order" data-delete-order-id="${esc(order.id)}" title="Delete order record">Delete Order</button>
+                </div>
+            </article>
+            `;
+        }).join("");
+    }
+
+    async function handleUpdateOrderStatus(orderId, newStatus) {
+        if (!client || !orderId) return;
 
         try {
-            const { error } = await client.auth.signInWithOtp({
-                email,
-                options: {
-                    shouldCreateUser: true,
-                    emailRedirectTo: window.location.origin + window.location.pathname
-                }
-            });
+            const { error } = await client
+                .from("orders")
+                .update({
+                    status: newStatus,
+                    updated_at: new Date().toISOString()
+                })
+                .eq("id", orderId);
 
             if (error) throw error;
 
-            adminOtpEmail = email;
+            // Update in local memory
+            const order = adminOrders.find(o => o.id === orderId);
+            if (order) order.status = newStatus;
 
-            // Show Step 2
-            const target = document.querySelector("#adminOtpEmailTarget");
-            if (target) target.textContent = email;
-            document.querySelector("#adminOtpRequestForm").hidden = true;
-            document.querySelector("#adminOtpVerifyForm").hidden = false;
-            setMessage(feedback, "✅ Verification code sent! Check your email inbox (and spam folder).");
-        } catch (err) {
-            console.error("Admin OTP send error:", err);
-            const msg = err?.message || "";
-            if (msg.toLowerCase().includes("fetch") || msg.toLowerCase().includes("network") || msg.toLowerCase().includes("failed to fetch")) {
-                setMessage(feedback, "⚠️ Cannot reach the server. Your Supabase project may be paused — resume it at app.supabase.com.");
-            } else if (msg.toLowerCase().includes("rate") || msg.toLowerCase().includes("limit")) {
-                setMessage(feedback, "⚠️ Email rate limit reached. Supabase Free Tier allows ~2 emails/hour. Please wait a few minutes or use Google Sign-In instead.");
-            } else {
-                setMessage(feedback, `Could not send code: ${msg || "Unknown error. Please try again."}`);
+            updateOrderStats();
+
+            // Visual confirmation
+            const selectEl = document.querySelector(`select[data-order-status-select="${orderId}"]`);
+            if (selectEl) {
+                selectEl.className = `admin-status-dropdown status-${newStatus.toLowerCase()}`;
             }
-        } finally {
-            if (btn) { btn.disabled = false; btn.querySelector("span").textContent = "Send Verification Code"; }
+        } catch (err) {
+            console.error("Update status error:", err);
+            alert(`Could not update order status: ${err.message}`);
+            await loadAdminOrders();
         }
     }
 
-    async function handleAdminOtpVerify(event) {
-        event.preventDefault();
-        const feedback = document.querySelector("#loginFeedback");
-        const token = document.querySelector("#adminOtpCode")?.value.trim();
-        const btn = document.querySelector("#adminVerifyOtpBtn");
-
-        if (!token || token.length !== 6) {
-            setMessage(feedback, "Please enter the 6-digit code from your email.");
-            return;
-        }
-
-        setMessage(feedback, "");
-        if (btn) { btn.disabled = true; btn.querySelector("span").textContent = "Verifying…"; }
+    async function handleDeleteOrder(orderId) {
+        if (!client || !orderId) return;
+        if (!window.confirm("Are you sure you want to delete this order record? This action cannot be undone.")) return;
 
         try {
-            const { data, error } = await client.auth.verifyOtp({
-                email: adminOtpEmail,
-                token,
-                type: "email"
-            });
+            const { error } = await client
+                .from("orders")
+                .delete()
+                .eq("id", orderId);
 
             if (error) throw error;
 
-            // OTP verified — handleAuthenticatedUser will check admin status
-            await handleAuthenticatedUser(data.user);
+            adminOrders = adminOrders.filter(o => o.id !== orderId);
+            updateOrderStats();
+            renderAdminOrders();
         } catch (err) {
-            console.error("Admin OTP verify error:", err);
-            setMessage(feedback, `Verification failed: ${err?.message || "Invalid or expired code. Please try again."}`);
-        } finally {
-            if (btn) { btn.disabled = false; btn.querySelector("span").textContent = "Verify & Sign In"; }
-        }
-    }
-
-    function resetAdminOtpForm() {
-        adminOtpEmail = "";
-        const requestForm = document.querySelector("#adminOtpRequestForm");
-        const verifyForm = document.querySelector("#adminOtpVerifyForm");
-        const otpInput = document.querySelector("#adminOtpCode");
-        const feedback = document.querySelector("#loginFeedback");
-        if (requestForm) requestForm.hidden = false;
-        if (verifyForm) verifyForm.hidden = true;
-        if (otpInput) otpInput.value = "";
-        if (feedback) feedback.textContent = "";
-    }
-
-    async function handleAuthenticatedUser(user) {
-        currentUser = user;
-        const feedback = document.querySelector("#loginFeedback");
-
-        try {
-            await requireAdmin(user);
-
-            loginPanel.hidden = true;
-            secureAdmin.hidden = false;
-
-            document.querySelector("#adminUserLabel").textContent = user.email;
-            await loadProducts();
-        } catch (error) {
-            setMessage(feedback, error.message || "Admin authorization could not be verified.");
-            await client.auth.signOut();
-            currentUser = null;
-            resetAdminOtpForm();
+            console.error("Delete order error:", err);
+            alert(`Could not delete order: ${err.message}`);
         }
     }
 
@@ -757,35 +889,71 @@
 
         renderCategories();
 
-        // Admin auth: Google OAuth button
-        document.querySelector("#adminGoogleBtn")?.addEventListener("click", handleAdminGoogleLogin);
+        // Admin Tab Switching (Products vs Orders)
+        const tabBtnProducts = document.querySelector("#adminTabBtnProducts");
+        const tabBtnOrders = document.querySelector("#adminTabBtnOrders");
+        const sectionProducts = document.querySelector("#adminSectionProducts");
+        const sectionOrders = document.querySelector("#adminSectionOrders");
 
-        // Admin auth: Email OTP request form
-        document.querySelector("#adminOtpRequestForm")?.addEventListener("submit", handleAdminOtpRequest);
+        if (tabBtnProducts && tabBtnOrders && sectionProducts && sectionOrders) {
+            tabBtnProducts.addEventListener("click", () => {
+                tabBtnProducts.classList.add("active");
+                tabBtnOrders.classList.remove("active");
+                sectionProducts.hidden = false;
+                sectionOrders.hidden = true;
+            });
 
-        // Admin auth: Email OTP verify form
-        document.querySelector("#adminOtpVerifyForm")?.addEventListener("submit", handleAdminOtpVerify);
+            tabBtnOrders.addEventListener("click", () => {
+                tabBtnOrders.classList.add("active");
+                tabBtnProducts.classList.remove("active");
+                sectionOrders.hidden = false;
+                sectionProducts.hidden = true;
+                loadAdminOrders();
+            });
+        }
 
-        // Admin auth: Resend OTP
-        document.querySelector("#adminResendOtp")?.addEventListener("click", async () => {
-            const feedback = document.querySelector("#loginFeedback");
-            if (!adminOtpEmail || !client) return;
-            try {
-                await client.auth.signInWithOtp({ email: adminOtpEmail, options: { shouldCreateUser: true, emailRedirectTo: window.location.origin + window.location.pathname } });
-                setMessage(feedback, "✅ New code sent! Check your inbox and spam folder.", true);
-            } catch (err) {
-                setMessage(feedback, `Could not resend: ${err?.message || "Please try again."}`);
+        // Sign Out buttons
+        const handleSignOut = () => {
+            if (client) {
+                client.auth.signOut().then(() => {
+                    currentUser = null;
+                    showGateGuest();
+                });
+            }
+        };
+        document.querySelector("#signOutButton")?.addEventListener("click", handleSignOut);
+        document.querySelector("#gateSignOutBtn")?.addEventListener("click", handleSignOut);
+
+        // Orders tools listeners
+        document.querySelector("#refreshAdminOrdersBtn")?.addEventListener("click", loadAdminOrders);
+
+        document.querySelector("#adminOrderSearchInput")?.addEventListener("input", (e) => {
+            orderSearchQuery = e.currentTarget.value;
+            renderAdminOrders();
+        });
+
+        document.querySelector("#adminOrderStatusFilter")?.addEventListener("change", (e) => {
+            selectedOrderStatusFilter = e.currentTarget.value;
+            renderAdminOrders();
+        });
+
+        // Orders container event delegation (status change & delete)
+        document.querySelector("#adminOrdersContainer")?.addEventListener("change", (e) => {
+            const select = e.target.closest("[data-order-status-select]");
+            if (select) {
+                const orderId = select.dataset.orderStatusSelect;
+                const newStatus = select.value;
+                handleUpdateOrderStatus(orderId, newStatus);
             }
         });
 
-        // Admin auth: Change email (go back to Step 1)
-        document.querySelector("#adminChangeEmail")?.addEventListener("click", () => {
-            resetAdminOtpForm();
+        document.querySelector("#adminOrdersContainer")?.addEventListener("click", (e) => {
+            const delBtn = e.target.closest("[data-delete-order-id]");
+            if (delBtn) {
+                const orderId = delBtn.dataset.deleteOrderId;
+                handleDeleteOrder(orderId);
+            }
         });
-
-        document.querySelector("#signOutButton")?.addEventListener("click", () =>
-            client.auth.signOut().then(() => location.reload())
-        );
 
         document.querySelector("#showSingleProduct")?.addEventListener("click", () => showSingleForm());
         document.querySelector("#showBulkProducts")?.addEventListener("click", openBulk);
@@ -946,17 +1114,16 @@
             }
         });
 
-        // Check active session
-        const { data: { session } } = await client.auth.getSession();
-        if (session?.user) {
-            await handleAuthenticatedUser(session.user);
-        }
+        // Initial verification of admin authorization
+        await verifyAdminAccess();
 
+        // Listen for auth state changes (e.g. login/logout in other tabs or OAuth callback)
         client.auth.onAuthStateChange((_event, session) => {
-            if (!session) {
+            if (!session?.user) {
                 currentUser = null;
-                secureAdmin.hidden = true;
-                loginPanel.hidden = false;
+                showGateGuest();
+            } else {
+                verifyAdminAccess();
             }
         });
     }
