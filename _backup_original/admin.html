@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="theme-color" content="#fff8fa">
+	<title>Admin Login | Shubham General Store</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+	<link rel="icon" type="image/svg+xml" href="assets/images/shubham-general-store-logo.svg">
+	<link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="admin.css">
+	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+	<script src="supabase-config.js" defer></script>
+	<script src="admin.js" defer></script>
+</head>
+<body class="admin-page">
+	<header class="site-header admin-site-header">
+		<div class="header-main page-width">
+			<a class="brand-mark" href="index.html" aria-label="Shubham General Store home"><img class="brand-logo" src="assets/images/shubham-general-store-logo.svg" alt=""><span class="brand-wordmark"><span class="brand-primary">Shubham</span><span class="brand-subtitle">GENERAL STORE</span></span></a>
+			<a class="admin-back-link" href="index.html">Back to storefront</a>
+		</div>
+	</header>
+	<main class="admin-shell page-width">
+		<section class="admin-panel-heading"><p class="eyebrow">AUTHORIZED STAFF ONLY</p><h1>Product administration</h1><p>Manage the catalogue shared with the storefront.</p></section>
+		<p class="admin-config-warning" id="configWarning" role="alert" hidden></p>
+		<section class="admin-auth-panel" id="loginPanel" aria-labelledby="loginTitle">
+			<h2 id="loginTitle">Admin sign in</h2>
+			<p>Sign in with the admin account provisioned in Supabase Auth.</p>
+			<form id="adminLoginForm">
+				<label class="field-label" for="adminEmail">Email<input id="adminEmail" name="email" type="email" autocomplete="username" required></label>
+				<label class="field-label" for="adminPassword">Password<input id="adminPassword" name="password" type="password" autocomplete="current-password" required></label>
+				<button class="button button-dark" type="submit">Sign in</button>
+			</form>
+			<p class="form-feedback" id="loginFeedback" role="status" aria-live="polite"></p>
+		</section>
+		<section class="secure-admin" id="secureAdmin" hidden>
+			<div class="admin-toolbar"><div><p class="eyebrow">SECURE CATALOGUE</p><h2>Products</h2><p id="adminUserLabel"></p></div><button class="button button-outline" id="signOutButton" type="button">Sign out</button></div>
+			<div class="secure-admin-actions"><button class="button button-dark" id="showSingleProduct" type="button">Add Product</button><button class="button button-outline" id="showBulkProducts" type="button">Add Multiple Products</button></div>
+			<form class="secure-product-form" id="secureProductForm" hidden novalidate>
+				<h3 id="secureFormTitle">Add Product</h3><input type="hidden" name="id">
+				<div class="secure-fields">
+					<label class="field-label">Product name<input name="name" required maxlength="100"></label>
+					<label class="field-label">Brand name<input name="brand" required maxlength="80"></label>
+					<label class="field-label">Category<select name="category" required><option value="">Choose category</option></select></label>
+					<label class="field-label">Selling price (INR)<input name="price" type="number" min="1" step="0.01" required></label>
+					<label class="field-label">MRP (optional)<input name="mrp" type="number" min="0" step="0.01"></label>
+					<label class="field-label">Stock quantity<input name="stockQuantity" type="number" min="0" step="1" required></label>
+					<label class="field-label field-wide">Product image<input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><small>Required for a new product; existing photo is kept when editing without selecting another.</small></label>
+					<label class="field-label field-wide">Description<textarea name="description" rows="3" required maxlength="1000"></textarea></label>
+					<label class="field-label field-wide">Shade / size / variant<input name="variants" placeholder="Separate variants with |"></label>
+					<label class="publish-field field-wide"><input name="isPublished" type="checkbox" checked><span>Publish to the customer catalogue</span></label>
+				</div>
+				<div class="admin-form-actions"><button class="button button-dark" type="submit">Save Product</button><button class="button button-outline" id="cancelProductEdit" type="button">Cancel</button></div>
+				<p class="form-feedback" id="productFormFeedback" role="status" aria-live="polite"></p>
+			</form>
+			<section class="secure-bulk" id="secureBulk" hidden>
+				<h3>Bulk products</h3><p>Add ten or more entries; incomplete rows are not saved.</p>
+				<div class="bulk-entry-toolbar"><button class="button button-outline" id="secureAddBulkRow" type="button">Add Another Product</button><label class="field-label">Or import CSV<input id="secureCsvFile" type="file" accept=".csv,text/csv"></label><label class="bulk-option"><input id="secureAllowDuplicates" type="checkbox"> Allow duplicate name + brand</label><label class="bulk-option"><input id="securePublishBulk" type="checkbox" checked> Publish valid products after save</label></div>
+				<div class="secure-bulk-rows" id="secureBulkRows"></div>
+				<section class="bulk-preview" id="secureBulkPreview" hidden><h4>Preview</h4><div class="bulk-preview-table-wrap"><table class="bulk-preview-table"><thead><tr><th>Product</th><th>Category</th><th>Price / MRP</th><th>Stock</th><th>Photo</th><th>Check</th></tr></thead><tbody id="secureBulkPreviewRows"></tbody></table></div></section>
+				<div class="admin-form-actions"><button class="button button-outline" id="secureReviewBulk" type="button">Preview & Validate</button><button class="button button-dark" id="secureSaveBulk" type="button" disabled>Save All Products</button></div>
+				<p class="form-feedback" id="secureBulkFeedback" role="status" aria-live="polite"></p>
+			</section>
+			<section class="secure-product-list"><h3>Saved products</h3><div id="secureProductList"></div></section>
+		</section>
+	</main>
+</body>
+</html>
