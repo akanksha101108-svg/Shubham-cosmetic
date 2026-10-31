@@ -1,0 +1,53 @@
+.admin-page { min-height: 100vh; background: #fffafa; }
+.admin-site-header .header-main { display: flex; min-height: 76px; justify-content: space-between; }
+.admin-back-link { color: #725b61; font-size: 11px; text-decoration: underline; text-underline-offset: 3px; }
+.admin-shell { padding-top: 38px; padding-bottom: 70px; }
+.admin-panel-heading { margin-bottom: 24px; }
+.admin-panel-heading h1 { margin: 0; font-family: var(--serif); font-size: 36px; font-weight: 500; }
+.admin-panel-heading > p:last-child { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+.admin-config-warning { margin: 18px 0; padding: 13px 16px; border-left: 3px solid var(--rose); background: #fff0f3; color: #704651; font-size: 11px; line-height: 1.6; }
+.admin-auth-panel, .secure-product-form, .secure-bulk { max-width: 760px; margin: 0 auto 28px; padding: 22px; border: 1px solid var(--line); background: white; box-shadow: 0 8px 26px rgba(68, 40, 48, .05); }
+.admin-auth-panel h2, .secure-product-form h3, .secure-bulk h3, .secure-product-list h3 { margin: 0 0 8px; font-family: var(--serif); font-size: 24px; font-weight: 500; }
+.admin-auth-panel > p:not(.form-feedback), .secure-bulk > p { margin: 0 0 16px; color: var(--muted); font-size: 11px; }
+.admin-auth-panel form { display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: 12px; }
+.admin-auth-panel form .button { min-height: 39px; }
+.secure-admin[hidden], .admin-auth-panel[hidden], .secure-product-form[hidden], .secure-bulk[hidden] { display: none; }
+.admin-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 22px; padding-bottom: 17px; border-bottom: 1px solid var(--line); }
+.admin-toolbar .eyebrow { margin-bottom: 4px; }
+.admin-toolbar h2 { margin: 0; font-family: var(--serif); font-size: 31px; font-weight: 500; }
+.admin-toolbar p:not(.eyebrow) { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
+.secure-admin-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 20px; }
+.secure-admin-actions .button { min-height: 40px; }
+.secure-product-form, .secure-bulk { max-width: none; margin: 0 0 26px; box-shadow: none; }
+.secure-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.secure-fields .field-wide { grid-column: 1 / -1; }
+.secure-fields input[type="file"] { min-height: 42px; }
+.secure-bulk-rows { display: grid; gap: 9px; margin-top: 15px; }
+.secure-bulk-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; padding: 13px; border: 1px solid var(--line); background: #fffdfd; }
+.secure-bulk-row h4 { grid-column: 1 / -1; margin: 0; color: #5c454c; font-family: var(--serif); font-size: 15px; font-weight: 500; }
+.secure-product-list { padding: 20px; border-top: 1px solid var(--line); }
+.secure-product-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.secure-product-meta { display: grid; gap: 3px; }
+.secure-product-meta strong { font-family: var(--serif); font-size: 16px; font-weight: 500; }
+.secure-product-meta span { color: var(--muted); font-size: 10px; }
+.secure-product-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.secure-product-actions button { min-height: 32px; padding: 0 10px; border: 1px solid #e3d7d9; background: white; color: #55474b; cursor: pointer; font-size: 10px; }
+.secure-product-actions button:hover { border-color: var(--rose); color: var(--rose-dark); }
+.admin-page .field-label { font-size: 10px; }
+.admin-page .field-label input, .admin-page .field-label textarea, .admin-page .field-label select { font-size: 12px; }
+@media (max-width: 800px) {
+  .admin-auth-panel form { grid-template-columns: 1fr 1fr; }
+  .admin-auth-panel form .button { grid-column: 1 / -1; }
+  .secure-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .secure-bulk-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .admin-shell { padding-top: 26px; }
+  .admin-panel-heading h1 { font-size: 29px; }
+  .admin-auth-panel, .secure-product-form, .secure-bulk { padding: 16px; }
+  .admin-auth-panel form, .secure-fields, .secure-bulk-row { grid-template-columns: 1fr; }
+  .secure-fields .field-wide, .secure-bulk-row h4 { grid-column: auto; }
+  .admin-toolbar { align-items: flex-start; }
+  .admin-toolbar h2 { font-size: 25px; }
+  .secure-product-row { grid-template-columns: 1fr; }
+}
