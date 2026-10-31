@@ -25,6 +25,17 @@
 		<span>WhatsApp: +91 9250203173</span>
 	</div>
 
+	<!-- Owner Announcement Bar (Shown only when akanksha101108@gmail.com is logged in) -->
+	<div class="owner-top-bar" id="ownerTopBar" hidden>
+		<div class="page-width owner-top-bar-inner">
+			<span>👑 <strong>Owner Admin Mode Active:</strong> Welcome, Akanksha!</span>
+			<div class="owner-top-bar-links">
+				<a href="admin.html" class="owner-bar-btn">Manage Store & Orders →</a>
+				<button type="button" class="owner-bar-btn-logout" id="ownerQuickLogoutBtn">Sign Out</button>
+			</div>
+		</div>
+	</div>
+
 	<header class="site-header">
 		<div class="header-main page-width">
 			<button class="icon-button menu-toggle" id="menuToggle" type="button" aria-label="Open navigation" aria-expanded="false">
@@ -48,6 +59,8 @@
 			</form>
 
 			<div class="header-actions">
+				<a href="admin.html" class="owner-dash-link" id="ownerDashLink" hidden title="Open Owner Dashboard">👑 Admin Dashboard</a>
+
 				<button class="header-user-btn" id="customerLoginButton" type="button" aria-label="Customer account">
 					<svg viewBox="0 0 24 24" aria-hidden="true" class="user-icon"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
 					<span class="user-btn-text" id="customerButtonText">Login</span>
@@ -217,55 +230,189 @@
 		</div>
 	</footer>
 
-	<!-- Customer Profile Dialog -->
+	<!-- Unified Authentication Dialog (Google + Email OTP) -->
+	<dialog class="auth-dialog" id="authDialog" aria-labelledby="authDialogTitle">
+		<button class="dialog-close" type="button" data-close-dialog="authDialog" aria-label="Close sign in">×</button>
+		<div class="auth-dialog-header">
+			<span class="auth-badge">SHUBHAM STORE ACCESS</span>
+			<h2 id="authDialogTitle">Sign In to Your Account</h2>
+			<p>Sign in to save your delivery address, track previous orders, and enjoy faster WhatsApp checkout.</p>
+		</div>
+
+		<div class="auth-dialog-body">
+			<!-- Google OAuth Option -->
+			<button class="button button-google" id="googleAuthBtn" type="button">
+				<svg class="google-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+					<path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17Z"/>
+					<path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24Z"/>
+					<path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15Z"/>
+					<path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"/>
+				</svg>
+				<span>Continue with Google</span>
+			</button>
+
+			<div class="auth-divider">
+				<span>or sign in with Email OTP</span>
+			</div>
+
+			<!-- Step 1: Request OTP -->
+			<form class="auth-otp-form" id="otpRequestForm">
+				<label class="field-label" for="authEmailInput">Email / Gmail Address
+					<input id="authEmailInput" name="authEmail" type="email" placeholder="name@example.com" autocomplete="email" required>
+				</label>
+				<button class="button button-dark auth-submit-btn" type="submit" id="sendOtpBtn">
+					<span>Send Verification Code</span>
+				</button>
+			</form>
+
+			<!-- Step 2: Verify OTP (Hidden until requested) -->
+			<form class="auth-otp-form" id="otpVerifyForm" hidden>
+				<div class="otp-sent-banner">
+					<span>✉️ Verification code sent to <strong id="otpEmailSentTarget"></strong></span>
+				</div>
+				<label class="field-label" for="authOtpInput">Enter 6-Digit Code
+					<input id="authOtpInput" name="authOtp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="123456" autocomplete="one-time-code" required>
+				</label>
+				<button class="button button-dark auth-submit-btn" type="submit" id="verifyOtpBtn">
+					<span>Verify & Sign In</span>
+				</button>
+				<div class="otp-action-links">
+					<button type="button" class="text-link-btn" id="resendOtpBtn">Resend Code</button>
+					<span class="sep">·</span>
+					<button type="button" class="text-link-btn" id="changeAuthEmailBtn">Use different email</button>
+				</div>
+			</form>
+
+			<p class="form-feedback" id="authFeedback" role="status" aria-live="polite"></p>
+		</div>
+	</dialog>
+
+	<!-- Comprehensive Customer Account & Profile Dialog -->
 	<dialog class="profile-dialog" id="profileDialog" aria-labelledby="profileTitle">
 		<div class="profile-dialog-header">
 			<div>
-				<p class="eyebrow">CUSTOMER ACCOUNT</p>
-				<h2 id="profileTitle">Your Profile</h2>
+				<p class="eyebrow" id="profileEyebrow">CUSTOMER PORTAL</p>
+				<h2 id="profileTitle">My Account</h2>
 			</div>
-			<button class="dialog-close" type="button" data-close-dialog="profileDialog" aria-label="Close profile">×</button>
+			<button class="dialog-close" type="button" data-close-dialog="profileDialog" aria-label="Close account">×</button>
+		</div>
+
+		<!-- Status Header -->
+		<div class="profile-status-bar" id="profileStatusBar">
+			<div class="profile-avatar" id="profileAvatar">👤</div>
+			<div class="profile-status-info">
+				<p class="profile-email" id="profileUserEmail">Loading account…</p>
+				<div class="profile-badges-row">
+					<span class="profile-badge" id="profileBadge">Customer</span>
+					<span class="profile-badge badge-owner" id="profileOwnerBadge" hidden>👑 Verified Owner</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Account Navigation Tabs -->
+		<div class="account-nav-tabs" role="tablist">
+			<button class="account-tab active" type="button" role="tab" id="tabBtnProfile" data-tab="tabProfile">
+				👤 My Profile
+			</button>
+			<button class="account-tab" type="button" role="tab" id="tabBtnOrders" data-tab="tabOrders">
+				📦 My Orders <span class="tab-count-pill" id="orderCountPill" hidden>0</span>
+			</button>
+			<button class="account-tab" type="button" role="tab" id="tabBtnAddresses" data-tab="tabAddresses">
+				📍 My Addresses
+			</button>
+			<button class="account-tab" type="button" role="tab" id="tabBtnSettings" data-tab="tabSettings">
+				⚙️ Settings
+			</button>
 		</div>
 
 		<div class="profile-content">
-			<div class="profile-status-bar" id="profileStatusBar">
-				<div class="profile-avatar" id="profileAvatar">👤</div>
-				<div>
-					<p class="profile-email" id="profileUserEmail">Not logged in</p>
-					<span class="profile-badge" id="profileBadge">Guest</span>
+			<!-- TAB 1: My Profile -->
+			<section class="tab-panel active" id="tabProfile" role="tabpanel">
+				<form class="profile-form" id="customerProfileForm" novalidate>
+					<div class="form-grid">
+						<label class="field-label" for="profileName">Full Name <span>*</span>
+							<input id="profileName" name="profileName" autocomplete="name" required maxlength="80" placeholder="Your full name">
+						</label>
+
+						<label class="field-label" for="profilePhone">Mobile Number <span>*</span>
+							<input id="profilePhone" name="profilePhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile number" required>
+						</label>
+
+						<label class="field-label field-wide" for="profileAddress">Delivery Address <span>*</span>
+							<textarea id="profileAddress" name="profileAddress" autocomplete="street-address" rows="3" maxlength="300" placeholder="House/Flat number, Street, Landmark" required></textarea>
+						</label>
+
+						<label class="field-label" for="profileCity">City <span>*</span>
+							<input id="profileCity" name="profileCity" autocomplete="address-level2" maxlength="60" placeholder="Your city" required>
+						</label>
+
+						<label class="field-label" for="profilePin">PIN Code <span>*</span>
+							<input id="profilePin" name="profilePin" inputmode="numeric" autocomplete="postal-code" maxlength="6" placeholder="6-digit PIN code" required>
+						</label>
+					</div>
+
+					<p class="form-feedback" id="profileFeedback" role="status" aria-live="polite"></p>
+
+					<div class="profile-actions">
+						<button class="button button-dark" type="submit" id="saveProfileBtn">Save Profile Details</button>
+					</div>
+				</form>
+			</section>
+
+			<!-- TAB 2: My Orders -->
+			<section class="tab-panel" id="tabOrders" role="tabpanel" hidden>
+				<div class="orders-section-header">
+					<h3>Order History</h3>
+					<button class="button button-outline btn-refresh-orders" type="button" id="refreshOrdersBtn">↻ Refresh</button>
 				</div>
-			</div>
 
-			<form class="profile-form" id="customerProfileForm" novalidate>
-				<div class="form-grid">
-					<label class="field-label" for="profileName">Full Name <span>*</span>
-						<input id="profileName" name="profileName" autocomplete="name" required maxlength="80" placeholder="Your full name">
-					</label>
-
-					<label class="field-label" for="profilePhone">Mobile Number <span>*</span>
-						<input id="profilePhone" name="profilePhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="10-digit mobile number" required>
-					</label>
-
-					<label class="field-label field-wide" for="profileAddress">Delivery Address <span>*</span>
-						<textarea id="profileAddress" name="profileAddress" autocomplete="street-address" rows="3" maxlength="300" placeholder="House/Flat number, Street, Landmark" required></textarea>
-					</label>
-
-					<label class="field-label" for="profileCity">City <span>*</span>
-						<input id="profileCity" name="profileCity" autocomplete="address-level2" maxlength="60" placeholder="Your city" required>
-					</label>
-
-					<label class="field-label" for="profilePin">PIN Code <span>*</span>
-						<input id="profilePin" name="profilePin" inputmode="numeric" autocomplete="postal-code" maxlength="6" placeholder="6-digit PIN code" required>
-					</label>
+				<div class="customer-orders-list" id="customerOrdersContainer">
+					<div class="orders-loading">
+						<p>Loading your orders…</p>
+					</div>
 				</div>
+			</section>
 
-				<p class="form-feedback" id="profileFeedback" role="status" aria-live="polite"></p>
-
-				<div class="profile-actions">
-					<button class="button button-dark" type="submit" id="saveProfileBtn">Save Profile</button>
-					<button class="button button-outline" type="button" id="profileLogoutBtn">Sign Out</button>
+			<!-- TAB 3: My Addresses -->
+			<section class="tab-panel" id="tabAddresses" role="tabpanel" hidden>
+				<div class="saved-address-card" id="savedAddressCard">
+					<div class="address-card-header">
+						<strong>Primary Delivery Address</strong>
+						<span class="badge-default">Default</span>
+					</div>
+					<p class="address-text" id="displaySavedAddress">No address saved yet. Update your details in My Profile.</p>
+					<button class="button button-outline btn-edit-address" type="button" id="switchToEditAddressBtn">Edit Address Details</button>
 				</div>
-			</form>
+			</section>
+
+			<!-- TAB 4: Account Settings -->
+			<section class="tab-panel" id="tabSettings" role="tabpanel" hidden>
+				<div class="settings-card">
+					<div class="setting-item">
+						<div>
+							<strong>Authenticated Email</strong>
+							<p id="settingsDisplayEmail" class="setting-subtext">—</p>
+						</div>
+						<span class="status-verified-pill">Verified</span>
+					</div>
+
+					<div class="setting-item" id="ownerAdminSettingItem" hidden>
+						<div>
+							<strong>Owner & Administrator Privileges</strong>
+							<p class="setting-subtext">You have verified administrative authority over the store catalogue and orders.</p>
+						</div>
+						<a href="admin.html" class="button button-dark btn-small">Open Admin Dashboard →</a>
+					</div>
+
+					<div class="setting-item">
+						<div>
+							<strong>Sign Out</strong>
+							<p class="setting-subtext">Sign out of this session on this device.</p>
+						</div>
+						<button class="button button-outline" type="button" id="profileLogoutBtn">Sign Out</button>
+					</div>
+				</div>
+			</section>
 		</div>
 	</dialog>
 
@@ -322,7 +469,7 @@
 
 			<div class="checkout-summary" id="checkoutSummary"></div>
 
-			<p class="checkout-disclaimer">Order submission will open WhatsApp with your itemized summary. The store owner will confirm stock and delivery.</p>
+			<p class="checkout-disclaimer">Order submission will save your order to your account and open WhatsApp for confirmation with the store owner.</p>
 			<p class="form-feedback" id="formFeedback" role="status" aria-live="polite"></p>
 
 			<button class="button button-dark whatsapp-button" id="whatsappButton" type="submit">
