@@ -20,16 +20,16 @@
 	];
 	const CATEGORIES = ["All", ...PRODUCT_CATEGORIES];
 
-	const CATEGORY_IMAGES = {
-		"Makeup": "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=320&q=80",
-		"Skincare": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=320&q=80",
-		"Haircare": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=320&q=80",
-		"Nail Care": "https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&w=320&q=80",
-		"Beauty Accessories": "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=320&q=80",
-		"Bangles": "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&w=320&q=80",
-		"Fragrance": "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=320&q=80",
-		"Women's Care": "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?auto=format&fit=crop&w=320&q=80",
-		"Women’s Care": "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?auto=format&fit=crop&w=320&q=80"
+	const CATEGORY_EMOJIS = {
+		"Makeup": "💄",
+		"Skincare": "🧴",
+		"Haircare": "🪮",
+		"Nail Care": "💅",
+		"Beauty Accessories": "🎀",
+		"Bangles": "💍",
+		"Fragrance": "🌸",
+		"Women's Care": "🩷",
+		"Women’s Care": "🩷"
 	};
 
 	const money = new Intl.NumberFormat("en-IN", {
@@ -154,21 +154,16 @@
 	function renderCategories() {
 		if (categoryList) {
 			categoryList.innerHTML = PRODUCT_CATEGORIES.map((category) => {
-				const imgUrl = CATEGORY_IMAGES[category] || CATEGORY_IMAGES["Makeup"];
+				const emoji = CATEGORY_EMOJIS[category] || "✨";
 				return `
 					<button class="category-tile" type="button" data-category="${escapeHtml(category)}">
 						<span class="category-image">
-							<img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(category)}" loading="lazy">
-							<span class="category-image-fallback" hidden>${escapeHtml(category)}</span>
+							<span class="category-emoji" aria-hidden="true">${emoji}</span>
 						</span>
 						<span class="category-tile-label">${escapeHtml(category)}</span>
 					</button>
 				`;
 			}).join("");
-
-			categoryList.querySelectorAll(".category-image img").forEach((img) => {
-				attachImageFallback(img, img.nextElementSibling);
-			});
 		}
 
 		if (filterList) {
