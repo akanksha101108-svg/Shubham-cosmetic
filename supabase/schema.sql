@@ -9,7 +9,7 @@ create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
   name text not null check (length(trim(name)) between 1 and 100),
   brand text not null check (length(trim(brand)) between 1 and 80),
-  category text not null check (category in ('Makeup', 'Skincare', 'Haircare', 'Nail Care', 'Beauty Accessories', 'Bangles', 'Fragrance', 'Women’s Care')),
+  category text not null check (category in ('Makeup', 'Skincare', 'Haircare', 'Nail Care', 'Beauty Accessories', 'Bangles', 'Fragrance', 'Women’s Care', 'Women''s Care')),
   price numeric(12, 2) not null check (price > 0),
   mrp numeric(12, 2) check (mrp is null or mrp > price),
   description text not null check (length(trim(description)) between 1 and 1000),
@@ -18,6 +18,18 @@ create table if not exists public.products (
   stock_quantity integer not null default 0 check (stock_quantity >= 0),
   is_published boolean not null default false,
   created_by uuid not null references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Customer profiles table for storing customer delivery details securely
+create table if not exists public.customer_profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text not null default '',
+  phone text not null default '',
+  address text not null default '',
+  city text not null default '',
+  pincode text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -37,14 +49,18 @@ grant execute on function public.is_store_admin(uuid) to anon, authenticated;
 
 grant select on public.admin_users to authenticated;
 grant select, insert, update, delete on public.products to anon, authenticated;
+grant select, insert, update on public.customer_profiles to authenticated;
 
 alter table public.admin_users enable row level security;
 alter table public.products enable row level security;
+alter table public.customer_profiles enable row level security;
 
+-- Admin users policies
 create policy "Admins can read their own membership"
 on public.admin_users for select to authenticated
 using (user_id = auth.uid());
 
+-- Products policies
 create policy "Anyone can read published products"
 on public.products for select to anon, authenticated
 using (is_published or public.is_store_admin(auth.uid()));
@@ -62,6 +78,21 @@ create policy "Admins can delete products"
 on public.products for delete to authenticated
 using (public.is_store_admin(auth.uid()));
 
+-- Customer profiles policies (strict privacy: users can only see and update their own profile)
+create policy "Customers can read their own profile"
+on public.customer_profiles for select to authenticated
+using (id = auth.uid());
+
+create policy "Customers can insert their own profile"
+on public.customer_profiles for insert to authenticated
+with check (id = auth.uid());
+
+create policy "Customers can update their own profile"
+on public.customer_profiles for update to authenticated
+using (id = auth.uid())
+with check (id = auth.uid());
+
+-- Storage configuration
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('product-images', 'product-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp', 'image/avif'])
 on conflict (id) do update set public = true, file_size_limit = 5242880, allowed_mime_types = excluded.allowed_mime_types;
@@ -99,5 +130,5 @@ using (
   and (storage.foldername(name))[1] = auth.uid()::text
 );
 
--- After creating the first admin user in Supabase Auth, add their Auth user UUID:
+-- Note: To make an account an admin, insert their Supabase Auth User ID:
 -- insert into public.admin_users (user_id) values ('PASTE-AUTH-USER-UUID-HERE');
