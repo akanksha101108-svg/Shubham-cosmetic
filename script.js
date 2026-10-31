@@ -1223,7 +1223,10 @@
 				try {
 					const { error } = await supabaseClient.auth.signInWithOtp({
 						email,
-						options: { shouldCreateUser: true }
+						options: {
+							shouldCreateUser: true,
+							emailRedirectTo: window.location.origin + window.location.pathname
+						}
 					});
 
 					if (error) throw error;
@@ -1241,7 +1244,11 @@
 					console.error("OTP send error:", err);
 					const msg = err?.message || "";
 					if (msg.toLowerCase().includes("fetch") || msg.toLowerCase().includes("network") || msg.toLowerCase().includes("failed to fetch")) {
-						if (feedback) feedback.textContent = "⚠️ Cannot reach the server. Your Supabase project is likely paused — see the notice above.";
+						if (feedback) feedback.textContent = "⚠️ Cannot reach the server. Your Supabase project may be paused. Please try Google Sign-In instead.";
+					} else if (msg.toLowerCase().includes("rate") || msg.toLowerCase().includes("limit") || msg.toLowerCase().includes("exceeded")) {
+						if (feedback) feedback.textContent = "⚠️ Email rate limit reached (Supabase Free Tier: ~2 per hour). Please wait a few minutes, or use Google Sign-In instead.";
+					} else if (msg.toLowerCase().includes("not allowed") || msg.toLowerCase().includes("disabled")) {
+						if (feedback) feedback.textContent = "⚠️ Email OTP sign-in may not be enabled for this project. Please use Google Sign-In instead, or contact the store owner.";
 					} else {
 						if (feedback) feedback.textContent = `Could not send code: ${msg || "Unknown error. Please try again."}`;
 					}
