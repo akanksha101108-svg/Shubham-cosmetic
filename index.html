@@ -230,7 +230,7 @@
 		</div>
 	</footer>
 
-	<!-- Unified Authentication Dialog (Google + Email OTP) -->
+	<!-- Authentication Dialog (Google Sign-In) -->
 	<dialog class="auth-dialog" id="authDialog" aria-labelledby="authDialogTitle">
 		<button class="dialog-close" type="button" data-close-dialog="authDialog" aria-label="Close sign in">×</button>
 		<div class="auth-dialog-header">
@@ -251,43 +251,7 @@
 				<span>Continue with Google</span>
 			</button>
 
-			<div class="auth-divider">
-				<span>or sign in with Email OTP</span>
-			</div>
-
-			<!-- Step 1: Request OTP -->
-			<form class="auth-otp-form" id="otpRequestForm">
-				<label class="field-label" for="authEmailInput">Email / Gmail Address
-					<input id="authEmailInput" name="authEmail" type="email" placeholder="name@example.com" autocomplete="email" required>
-				</label>
-				<button class="button button-dark auth-submit-btn" type="submit" id="sendOtpBtn">
-					<span>Send Verification Code</span>
-				</button>
-			</form>
-
-			<!-- Step 2: Verify OTP (Hidden until requested) -->
-			<form class="auth-otp-form" id="otpVerifyForm" hidden>
-				<div class="otp-sent-banner">
-					<span>✉️ Verification code sent to <strong id="otpEmailSentTarget"></strong></span>
-				</div>
-				<label class="field-label" for="authOtpInput">Enter 6-Digit Code
-					<input id="authOtpInput" name="authOtp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="123456" autocomplete="one-time-code" required>
-				</label>
-				<button class="button button-dark auth-submit-btn" type="submit" id="verifyOtpBtn">
-					<span>Verify & Sign In</span>
-				</button>
-				<div class="otp-action-links">
-					<button type="button" class="text-link-btn" id="resendOtpBtn">Resend Code</button>
-					<span class="sep">·</span>
-					<button type="button" class="text-link-btn" id="changeAuthEmailBtn">Use different email</button>
-				</div>
-			</form>
-
 			<p class="form-feedback" id="authFeedback" role="status" aria-live="polite"></p>
-
-			<div class="auth-delivery-hint" id="authDeliveryHint">
-				<small>💡 <strong>Fastest Sign-In:</strong> Tap <strong>Continue with Google</strong> above to sign in instantly without waiting for an email verification code.</small>
-			</div>
 		</div>
 	</dialog>
 

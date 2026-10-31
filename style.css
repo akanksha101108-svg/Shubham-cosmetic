@@ -1782,9 +1782,10 @@ dialog::backdrop {
 }
 
 .auth-dialog-body {
-	padding: 24px 28px 28px;
+	padding: 28px 32px 32px;
 	display: flex;
 	flex-direction: column;
+	align-items: center;
 	gap: 14px;
 }
 
@@ -1793,127 +1794,34 @@ dialog::backdrop {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	gap: 10px;
+	gap: 12px;
 	width: 100%;
-	padding: 12px 20px;
-	background: #fff;
-	border: 1.5px solid #ddd;
-	border-radius: 12px;
+	min-height: 48px;
+	padding: 12px 24px;
+	background: #ffffff;
+	border: 1.5px solid #ebd9dc;
+	border-radius: 24px;
 	font-size: 15px;
 	font-weight: 600;
-	color: #333;
+	color: #2b1f23;
 	cursor: pointer;
-	transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
-	box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+	transition: all 0.2s ease;
+	box-shadow: 0 4px 14px rgba(158, 57, 81, 0.08);
 }
 .button-google:hover {
-	background: #f5f5f5;
-	border-color: #bbb;
-	box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+	background: #fff5f7;
+	border-color: var(--rose);
+	box-shadow: 0 6px 20px rgba(158, 57, 81, 0.16);
+	transform: translateY(-1px);
+}
+.button-google:active {
+	transform: scale(0.98);
 }
 
-.google-icon { flex-shrink: 0; }
-
-/* OR Divider */
-.auth-divider {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	color: #aaa;
-	font-size: 12px;
-	font-weight: 500;
-}
-.auth-divider::before,
-.auth-divider::after {
-	content: "";
-	flex: 1;
-	height: 1px;
-	background: #e8e8e8;
-}
-
-/* OTP Forms */
-.auth-otp-form {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-}
-
-.field-label {
-	display: flex;
-	flex-direction: column;
-	gap: 5px;
-	font-size: 13px;
-	font-weight: 600;
-	color: #333;
-}
-.field-label input {
-	border: 1.5px solid #ddd;
-	border-radius: 10px;
-	padding: 11px 14px;
-	font-size: 15px;
-	outline: none;
-	transition: border-color 0.2s, box-shadow 0.2s;
-	background: #fafafa;
-}
-.field-label input:focus {
-	border-color: #e91e8c;
-	box-shadow: 0 0 0 3px rgba(233,30,140,0.1);
-	background: #fff;
-}
-
-.auth-submit-btn {
-	width: 100%;
-	background: linear-gradient(135deg, #e91e8c, #c2185b);
-	color: #fff;
-	border: none;
-	border-radius: 12px;
-	padding: 13px 20px;
-	font-size: 15px;
-	font-weight: 700;
-	cursor: pointer;
-	transition: opacity 0.2s, transform 0.15s;
-}
-.auth-submit-btn:hover { opacity: 0.92; }
-.auth-submit-btn:active { transform: scale(0.98); }
-.auth-submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
-/* OTP Sent Banner */
-.otp-sent-banner {
-	background: #e8f5e9;
-	border: 1px solid #a5d6a7;
-	border-radius: 10px;
-	padding: 10px 14px;
-	font-size: 13px;
-	color: #2e7d32;
-}
-
-/* Action links below OTP form */
-.otp-action-links {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	font-size: 12.5px;
-	color: #888;
-	justify-content: center;
-}
-.otp-action-links .sep { color: #ccc; }
-.text-link-btn {
-	background: none;
-	border: none;
-	color: #c2185b;
-	cursor: pointer;
-	font-size: 12.5px;
-	font-weight: 600;
-	padding: 0;
-	text-decoration: underline;
-}
-.text-link-btn:hover { color: #e91e8c; }
-.text-link-btn:disabled,
-.text-link-btn.cooldown {
-	color: #999 !important;
-	cursor: not-allowed !important;
-	text-decoration: none !important;
-	opacity: 0.7;
+.google-icon {
+	width: 20px;
+	height: 20px;
+	flex-shrink: 0;
 }
 
 /* Form Feedback */
@@ -1923,27 +1831,13 @@ dialog::backdrop {
 	min-height: 18px;
 	text-align: center;
 	line-height: 1.5;
+	margin: 0;
 }
 .form-feedback.success {
 	color: #1b5e20 !important;
 	font-weight: 600;
 }
 .form-feedback:empty { display: none; }
-
-.auth-delivery-hint {
-	text-align: center;
-	color: #666;
-	font-size: 12px;
-	margin: 8px 0 0;
-	padding: 8px 12px;
-	background: #fdf7f9;
-	border-radius: 10px;
-	border: 1px dashed #f8bbd0;
-	line-height: 1.4;
-}
-.auth-delivery-hint strong {
-	color: #c2185b;
-}
 
 /* Auth dialog close button position */
 .auth-dialog .dialog-close {
@@ -2935,22 +2829,12 @@ dialog::backdrop {
 		font-size: 12.5px;
 	}
 	.auth-dialog-body {
-		padding: 18px 18px 22px;
+		padding: 22px 20px 26px;
 		gap: 12px;
 	}
-	.field-label input,
-	.field-label textarea,
-	.field-label select {
-		font-size: 16px !important; /* iOS zoom prevention */
-		min-height: 44px;
-	}
 	.button-google {
-		min-height: 44px;
-		font-size: 14px;
-	}
-	.auth-submit-btn {
-		min-height: 46px;
-		font-size: 14px;
+		min-height: 48px;
+		font-size: 14.5px;
 	}
 
 	.profile-dialog {
