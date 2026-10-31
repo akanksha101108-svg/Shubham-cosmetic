@@ -1070,12 +1070,21 @@
 		const feedback = document.getElementById("authFeedback");
 		const emailInput = document.getElementById("authEmailInput");
 		const otpInput = document.getElementById("authOtpInput");
+		const resendBtn = document.getElementById("resendOtpBtn");
 
 		if (requestForm) requestForm.hidden = false;
 		if (verifyForm) verifyForm.hidden = true;
-		if (feedback) feedback.textContent = "";
+		if (feedback) {
+			feedback.textContent = "";
+			feedback.classList.remove("success");
+		}
 		if (emailInput) emailInput.value = "";
 		if (otpInput) otpInput.value = "";
+		if (resendBtn) {
+			resendBtn.disabled = false;
+			resendBtn.classList.remove("cooldown");
+			resendBtn.textContent = "Resend Code";
+		}
 	}
 
 	function triggerGoogleLogin() {
@@ -1336,32 +1345,74 @@
 		}
 
 		// ── Auth Dialog: Request OTP (Step 1) ────────────────────────────────
+		let currentOtpEmail = "";
+		let resendCooldownTimer = null;
+
+		function startResendCooldown(seconds = 60) {
+			const resendBtn = document.getElementById("resendOtpBtn");
+			if (!resendBtn) return;
+
+			clearInterval(resendCooldownTimer);
+			let remaining = seconds;
+			resendBtn.disabled = true;
+			resendBtn.classList.add("cooldown");
+			resendBtn.textContent = `Resend in ${remaining}s`;
+
+			resendCooldownTimer = setInterval(() => {
+				remaining -= 1;
+				if (remaining <= 0) {
+					clearInterval(resendCooldownTimer);
+					resendBtn.disabled = false;
+					resendBtn.classList.remove("cooldown");
+					resendBtn.textContent = "Resend Code";
+				} else {
+					resendBtn.textContent = `Resend in ${remaining}s`;
+				}
+			}, 1000);
+		}
+
 		const otpRequestForm = document.getElementById("otpRequestForm");
 		if (otpRequestForm) {
 			otpRequestForm.addEventListener("submit", async (e) => {
 				e.preventDefault();
-				const email = document.getElementById("authEmailInput")?.value.trim();
+				const emailRaw = document.getElementById("authEmailInput")?.value || "";
+				const email = emailRaw.trim().toLowerCase();
 				const feedback = document.getElementById("authFeedback");
 				const btn = document.getElementById("sendOtpBtn");
 
 				if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-					if (feedback) feedback.textContent = "Please enter a valid email address.";
+					if (feedback) {
+						feedback.textContent = "Please enter a valid Gmail / email address.";
+						feedback.classList.remove("success");
+					}
 					return;
 				}
 
-				if (feedback) feedback.textContent = "";
-				if (btn) { btn.disabled = true; btn.querySelector("span").textContent = "Sending…"; }
+				if (feedback) {
+					feedback.textContent = "";
+					feedback.classList.remove("success");
+				}
+
+				if (btn) {
+					btn.disabled = true;
+					const span = btn.querySelector("span");
+					if (span) span.textContent = "Requesting Code…";
+				}
 
 				if (!supabaseClient) {
 					if (feedback) {
-						feedback.textContent = "⚠️ Cannot connect to authentication server. The Supabase project may be paused. Please try Google Sign-In or contact the store owner.";
+						feedback.textContent = "⚠️ Cannot connect to authentication server. Please try 'Continue with Google' above.";
 					}
-					if (btn) { btn.disabled = false; btn.querySelector("span").textContent = "Send Verification Code"; }
+					if (btn) {
+						btn.disabled = false;
+						const span = btn.querySelector("span");
+						if (span) span.textContent = "Send Verification Code";
+					}
 					return;
 				}
 
 				try {
-					const { error } = await supabaseClient.auth.signInWithOtp({
+					const { data, error } = await supabaseClient.auth.signInWithOtp({
 						email,
 						options: {
 							shouldCreateUser: true,
@@ -1369,31 +1420,58 @@
 						}
 					});
 
-					if (error) throw error;
+					if (error) {
+						console.error("Supabase OTP API Error:", error);
+						let msg = error.message || "Failed to send code.";
+						const status = error.status || (error.code === 429 ? 429 : 0);
 
-					// Move to Step 2: OTP verification
+						if (status === 429 || error.code === "over_email_send_rate_limit" || msg.toLowerCase().includes("rate limit")) {
+							msg = "⚠️ Supabase Email Rate Limit Reached: The built-in email service on Free Tier is capped at 2–3 emails per hour. Please click 'Continue with Google' above for instant login, or wait before retrying.";
+						} else if (msg.toLowerCase().includes("not authorized") || error.code === "email_address_not_authorized") {
+							msg = "⚠️ Email Delivery Restricted: Supabase Free Tier built-in mailer only sends to project team members. Please use 'Continue with Google' above, or configure Custom SMTP in Supabase Dashboard.";
+						} else if (msg.toLowerCase().includes("fetch") || msg.toLowerCase().includes("network")) {
+							msg = "⚠️ Network Connection Error: Could not reach authentication server. Please check your internet or use Google Sign-In.";
+						}
+
+						if (feedback) {
+							feedback.textContent = msg;
+							feedback.classList.remove("success");
+						}
+						return;
+					}
+
+					// ✅ SUCCESS: Supabase accepted the OTP request
+					currentOtpEmail = email;
 					const sentTarget = document.getElementById("otpEmailSentTarget");
 					if (sentTarget) sentTarget.textContent = email;
 
 					document.getElementById("otpRequestForm").hidden = true;
 					document.getElementById("otpVerifyForm").hidden = false;
+
 					if (feedback) {
-						feedback.textContent = "✅ Check your email for the 6-digit code (also check spam).";
+						feedback.textContent = "✅ Verification code sent! Please check your Inbox and Spam/Junk folder.";
+						feedback.classList.add("success");
 					}
+
+					// Start 60-second cooldown timer
+					startResendCooldown(60);
+
+					// Focus on OTP input
+					setTimeout(() => {
+						document.getElementById("authOtpInput")?.focus();
+					}, 100);
 				} catch (err) {
-					console.error("OTP send error:", err);
-					const msg = err?.message || "";
-					if (msg.toLowerCase().includes("fetch") || msg.toLowerCase().includes("network") || msg.toLowerCase().includes("failed to fetch")) {
-						if (feedback) feedback.textContent = "⚠️ Cannot reach the server. Your Supabase project may be paused. Please try Google Sign-In instead.";
-					} else if (msg.toLowerCase().includes("rate") || msg.toLowerCase().includes("limit") || msg.toLowerCase().includes("exceeded")) {
-						if (feedback) feedback.textContent = "⚠️ Email rate limit reached (Supabase Free Tier: ~2 per hour). Please wait a few minutes, or use Google Sign-In instead.";
-					} else if (msg.toLowerCase().includes("not allowed") || msg.toLowerCase().includes("disabled")) {
-						if (feedback) feedback.textContent = "⚠️ Email OTP sign-in may not be enabled for this project. Please use Google Sign-In instead, or contact the store owner.";
-					} else {
-						if (feedback) feedback.textContent = `Could not send code: ${msg || "Unknown error. Please try again."}`;
+					console.error("Unexpected OTP exception:", err);
+					if (feedback) {
+						feedback.textContent = `⚠️ Error: ${err.message || "Could not process request."}`;
+						feedback.classList.remove("success");
 					}
 				} finally {
-					if (btn) { btn.disabled = false; btn.querySelector("span").textContent = "Send Verification Code"; }
+					if (btn) {
+						btn.disabled = false;
+						const span = btn.querySelector("span");
+						if (span) span.textContent = "Send Verification Code";
+					}
 				}
 			});
 		}
@@ -1403,18 +1481,38 @@
 		if (otpVerifyForm) {
 			otpVerifyForm.addEventListener("submit", async (e) => {
 				e.preventDefault();
-				const email = document.getElementById("authEmailInput")?.value.trim();
+				const email = currentOtpEmail || document.getElementById("authEmailInput")?.value.trim().toLowerCase();
 				const token = document.getElementById("authOtpInput")?.value.trim();
 				const feedback = document.getElementById("authFeedback");
 				const btn = document.getElementById("verifyOtpBtn");
 
-				if (!token || token.length !== 6) {
-					if (feedback) feedback.textContent = "Please enter the 6-digit code from your email.";
+				if (!email) {
+					if (feedback) {
+						feedback.textContent = "Missing email address. Please go back and enter your email.";
+						feedback.classList.remove("success");
+					}
 					return;
 				}
 
-				if (feedback) feedback.textContent = "";
-				if (btn) { btn.disabled = true; btn.querySelector("span").textContent = "Verifying…"; }
+				if (!token || !/^\d{6}$/.test(token)) {
+					if (feedback) {
+						feedback.textContent = "Please enter the complete 6-digit numeric verification code.";
+						feedback.classList.remove("success");
+					}
+					document.getElementById("authOtpInput")?.focus();
+					return;
+				}
+
+				if (feedback) {
+					feedback.textContent = "";
+					feedback.classList.remove("success");
+				}
+
+				if (btn) {
+					btn.disabled = true;
+					const span = btn.querySelector("span");
+					if (span) span.textContent = "Verifying…";
+				}
 
 				try {
 					const { data, error } = await supabaseClient.auth.verifyOtp({
@@ -1423,18 +1521,42 @@
 						type: "email"
 					});
 
-					if (error) throw error;
+					if (error) {
+						console.error("OTP verification error:", error);
+						let msg = error.message || "Invalid verification code.";
+						if (msg.toLowerCase().includes("expired")) {
+							msg = "⚠️ This verification code has expired. Please click 'Resend Code' below to receive a new one.";
+						} else if (msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("token")) {
+							msg = "⚠️ Incorrect 6-digit code. Please check your latest email and enter the code carefully.";
+						}
 
-					// Success — close dialog, session will be handled by onAuthStateChange
+						if (feedback) {
+							feedback.textContent = msg;
+							feedback.classList.remove("success");
+						}
+						return;
+					}
+
+					// ✅ Successful Verification & Session Creation
+					clearInterval(resendCooldownTimer);
 					const authDialog = document.getElementById("authDialog");
 					if (authDialog) authDialog.close();
 					resetAuthDialog();
-					showToast(`Welcome! Signed in as ${data.user?.email || email}.`);
+
+					const userName = data.user?.user_metadata?.full_name || data.user?.email || email;
+					showToast(`🎉 Welcome to Shubham Store, ${userName}!`);
 				} catch (err) {
-					console.error("OTP verify error:", err);
-					if (feedback) feedback.textContent = `Verification failed: ${err?.message || "Invalid or expired code. Please try again."}`;
+					console.error("OTP verify exception:", err);
+					if (feedback) {
+						feedback.textContent = `Verification error: ${err.message || "Please try again."}`;
+						feedback.classList.remove("success");
+					}
 				} finally {
-					if (btn) { btn.disabled = false; btn.querySelector("span").textContent = "Verify & Sign In"; }
+					if (btn) {
+						btn.disabled = false;
+						const span = btn.querySelector("span");
+						if (span) span.textContent = "Verify & Sign In";
+					}
 				}
 			});
 		}
@@ -1443,14 +1565,60 @@
 		const resendOtpBtn = document.getElementById("resendOtpBtn");
 		if (resendOtpBtn) {
 			resendOtpBtn.addEventListener("click", async () => {
-				const email = document.getElementById("authEmailInput")?.value.trim();
+				if (resendOtpBtn.disabled) return;
+
+				const email = currentOtpEmail || document.getElementById("authEmailInput")?.value.trim().toLowerCase();
 				const feedback = document.getElementById("authFeedback");
 				if (!email || !supabaseClient) return;
+
+				resendOtpBtn.disabled = true;
+				resendOtpBtn.textContent = "Resending…";
+
+				if (feedback) {
+					feedback.textContent = "";
+					feedback.classList.remove("success");
+				}
+
 				try {
-					await supabaseClient.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
-					if (feedback) feedback.textContent = "✅ New code sent! Check your inbox and spam folder.";
+					const { data, error } = await supabaseClient.auth.signInWithOtp({
+						email,
+						options: {
+							shouldCreateUser: true,
+							emailRedirectTo: window.location.origin + window.location.pathname
+						}
+					});
+
+					if (error) {
+						console.error("Resend OTP error:", error);
+						let msg = error.message || "Could not resend code.";
+						const status = error.status || (error.code === 429 ? 429 : 0);
+
+						if (status === 429 || error.code === "over_email_send_rate_limit" || msg.toLowerCase().includes("rate limit")) {
+							msg = "⚠️ Email rate limit reached on Supabase. Please use Google Sign-In or wait a few minutes.";
+						}
+
+						if (feedback) {
+							feedback.textContent = msg;
+							feedback.classList.remove("success");
+						}
+						resendOtpBtn.disabled = false;
+						resendOtpBtn.textContent = "Resend Code";
+						return;
+					}
+
+					// ✅ Resend Success
+					if (feedback) {
+						feedback.textContent = "✅ A fresh 6-digit code has been dispatched. Please check your inbox and spam folder.";
+						feedback.classList.add("success");
+					}
+					startResendCooldown(60);
 				} catch (err) {
-					if (feedback) feedback.textContent = `Could not resend: ${err?.message || "Please try again."}`;
+					if (feedback) {
+						feedback.textContent = `Could not resend: ${err.message || "Please try again."}`;
+						feedback.classList.remove("success");
+					}
+					resendOtpBtn.disabled = false;
+					resendOtpBtn.textContent = "Resend Code";
 				}
 			});
 		}
@@ -1459,11 +1627,18 @@
 		const changeAuthEmailBtn = document.getElementById("changeAuthEmailBtn");
 		if (changeAuthEmailBtn) {
 			changeAuthEmailBtn.addEventListener("click", () => {
+				clearInterval(resendCooldownTimer);
+				currentOtpEmail = "";
 				document.getElementById("otpVerifyForm").hidden = true;
 				document.getElementById("otpRequestForm").hidden = false;
 				const feedback = document.getElementById("authFeedback");
-				if (feedback) feedback.textContent = "";
-				document.getElementById("authOtpInput").value = "";
+				if (feedback) {
+					feedback.textContent = "";
+					feedback.classList.remove("success");
+				}
+				const otpInput = document.getElementById("authOtpInput");
+				if (otpInput) otpInput.value = "";
+				document.getElementById("authEmailInput")?.focus();
 			});
 		}
 
