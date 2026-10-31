@@ -49,8 +49,10 @@
 		customerProfile: null
 	};
 
-	// Local products array
-	let catalogProducts = [];
+	// ── Product catalogue state ───────────────────────────────────────────────
+	let catalogProducts = [];         // The live product catalogue
+	let supabaseLoadSucceeded = false; // True once Supabase has returned real data at least once
+	let productFetchInFlight = false;  // Guard against duplicate simultaneous fetch requests
 
 	// DOM Elements
 	const productGrid = document.querySelector("#productGrid");
@@ -223,8 +225,9 @@
 			? Math.round((1 - product.price / product.originalPrice) * 100)
 			: null;
 
+		// null stockQuantity means "unlimited / not tracked" → treat as in-stock
 		const available = product.stockStatus === "in-stock" &&
-			(product.stockQuantity === undefined || product.stockQuantity > 0);
+			(product.stockQuantity === undefined || product.stockQuantity === null || product.stockQuantity > 0);
 
 		return `
 		<article class="product-card">
@@ -277,8 +280,11 @@
 
 	function renderProducts() {
 		const products = filteredProducts();
+		const totalInCatalogue = catalogProducts.filter((p) => p.published).length;
 
 		if (productGrid) {
+			// Remove any skeleton cards before rendering real products
+			productGrid.classList.remove("is-loading");
 			productGrid.innerHTML = products.map(productCard).join("");
 			productGrid.hidden = products.length === 0;
 
@@ -294,7 +300,22 @@
 
 		const emptyResults = document.querySelector("#emptyResults");
 		if (emptyResults) {
-			emptyResults.hidden = products.length > 0;
+			if (products.length === 0) {
+				emptyResults.hidden = false;
+				// Distinguish between "filter shows nothing" vs "catalogue is genuinely empty"
+				const heading = emptyResults.querySelector("h3, p");
+				if (heading) {
+					if (totalInCatalogue === 0) {
+						heading.textContent = "No products available yet. Check back soon!";
+					} else if (state.search) {
+						heading.textContent = `No products found for "${state.search}". Try a different search term.`;
+					} else {
+						heading.textContent = `No products in the "${state.category}" category yet.`;
+					}
+				}
+			} else {
+				emptyResults.hidden = true;
+			}
 		}
 
 		if (filterList) {
@@ -319,7 +340,7 @@
 		if (!detail) return;
 
 		const available = product.stockStatus === "in-stock" &&
-			(product.stockQuantity === undefined || product.stockQuantity > 0);
+			(product.stockQuantity === undefined || product.stockQuantity === null || product.stockQuantity > 0);
 
 		const activeImage = (product.shadeImages && state.selectedShade && product.shadeImages[state.selectedShade])
 			? product.shadeImages[state.selectedShade]
@@ -374,7 +395,9 @@
 
 	function addToCart(product, quantity = 1, shade = "") {
 		const maxQuantity = Math.min(10, product.stockQuantity ?? 10);
-		const available = product.stockStatus === "in-stock" && (product.stockQuantity === undefined || product.stockQuantity > 0);
+		// null stockQuantity means unlimited — treat as in-stock
+		const available = product.stockStatus === "in-stock" &&
+			(product.stockQuantity === undefined || product.stockQuantity === null || product.stockQuantity > 0);
 
 		if (!available) {
 			showToast(`${product.name} is currently out of stock.`);
@@ -700,9 +723,34 @@
 		}
 	}
 
-	/* Load published products from Supabase */
+	/**
+	 * loadPublishedProducts()
+	 *
+	 * SINGLE SOURCE OF TRUTH: Loads all published products from Supabase.
+	 *
+	 * Key design decisions to prevent products disappearing:
+	 *  1. In-flight guard — never runs two simultaneous fetches (race condition fix).
+	 *  2. Preserve-on-error — if Supabase is unreachable, the previously loaded
+	 *     products remain visible. We never clear the grid on a transient error.
+	 *  3. Error ≠ Empty catalogue — an API error shows a retry notice, NOT demo products.
+	 *  4. Empty Supabase (genuinely 0 published products) shows demo products only as
+	 *     a starter, clearly flagged in console.
+	 *  5. null stock_quantity is treated as "in-stock" (unlimited), not out-of-stock.
+	 *  6. Loading skeleton is shown while fetching so the grid is never blank.
+	 */
 	async function loadPublishedProducts() {
-		let loadedFromSupabase = false;
+		// ── Guard: skip if a fetch is already running ───────────────────────
+		if (productFetchInFlight) {
+			console.log("[Products] Fetch already in progress — skipping duplicate call.");
+			return;
+		}
+		productFetchInFlight = true;
+
+		// ── Show loading skeleton immediately ──────────────────────────────
+		showProductsLoading();
+
+		let fetchSucceeded = false;
+		let fetchError = null;
 
 		if (supabaseClient) {
 			try {
@@ -712,45 +760,147 @@
 					.eq("is_published", true)
 					.order("created_at", { ascending: false });
 
-				if (!error && Array.isArray(data) && data.length > 0) {
-					catalogProducts = data.map((row) => {
-						const img = imageUrl(row.image_path);
-						return {
-							id: row.id,
-							name: row.name,
-							brand: row.brand,
-							category: row.category,
-							description: row.description,
-							price: Number(row.price),
-							originalPrice: row.mrp ? Number(row.mrp) : undefined,
-							image: img,
-							shades: row.variants || [],
-							stockQuantity: row.stock_quantity,
-							stockStatus: row.stock_quantity > 0 ? "in-stock" : "out-of-stock",
-							isDemo: false,
-							published: true,
-							popularity: 90
-						};
-					});
-					loadedFromSupabase = true;
+				if (error) {
+					// Supabase returned a structured API error (e.g. RLS, bad query)
+					fetchError = error;
+					console.error("[Products] Supabase query error:", error.message || error);
+				} else if (Array.isArray(data)) {
+					// ✅ Successful query — update catalogProducts with fresh data
+					catalogProducts = data.map((row) => ({
+						id: row.id,
+						name: row.name,
+						brand: row.brand,
+						category: row.category,
+						description: row.description,
+						price: Number(row.price),
+						originalPrice: row.mrp ? Number(row.mrp) : undefined,
+						image: imageUrl(row.image_path),
+						shades: Array.isArray(row.variants) ? row.variants : (row.variants ? [row.variants] : []),
+						// Fix: null stock_quantity means unlimited — treat as in-stock
+						stockQuantity: row.stock_quantity ?? null,
+						stockStatus: (row.stock_quantity === null || row.stock_quantity === undefined || row.stock_quantity > 0)
+							? "in-stock"
+							: "out-of-stock",
+						isDemo: false,
+						published: true,
+						popularity: typeof row.popularity === "number" ? row.popularity : 90
+					}));
+					supabaseLoadSucceeded = true;
+					fetchSucceeded = true;
+
+					if (data.length === 0) {
+						console.info("[Products] Supabase returned 0 published products. " +
+							"Either no products have been added yet, or all are unpublished. " +
+							"Showing demo starter products as placeholder.");
+					} else {
+						console.info(`[Products] Loaded ${data.length} published product(s) from Supabase.`);
+					}
 				}
 			} catch (err) {
-				console.warn("Supabase product load notice:", err);
+				// Network-level error (Supabase paused, DNS failure, offline)
+				fetchError = err;
+				console.error("[Products] Network error while fetching products:", err?.message || err);
 			}
+		} else {
+			console.warn("[Products] Supabase client not initialised — supabase-config.js may be missing.");
 		}
 
-		// Fallback to starter products if Supabase has 0 products yet
-		if (!loadedFromSupabase) {
+		productFetchInFlight = false;
+
+		// ── Handle results ─────────────────────────────────────────────────
+
+		if (!fetchSucceeded) {
+			if (supabaseLoadSucceeded) {
+				// We previously loaded real products — PRESERVE THEM.
+				// A transient error must never clear a working catalogue.
+				console.warn("[Products] Fetch failed — keeping previously loaded products visible.");
+				showNetworkRetryNotice();
+				// Re-render with the preserved data (no change to catalogProducts)
+				renderProducts();
+			} else {
+				// First-ever load failed (project paused, new deployment, etc.)
+				// Show demo products as a temporary placeholder only.
+				console.warn("[Products] First load failed — showing demo placeholder products.");
+				const starter = (window.DEMO_PRODUCTS || []).map((p) => ({
+					...p,
+					published: true,
+					stockStatus: (p.stockQuantity === undefined || p.stockQuantity === null || p.stockQuantity > 0)
+						? "in-stock"
+						: "out-of-stock"
+				}));
+				catalogProducts = starter;
+				showNetworkRetryNotice();
+				renderCategories();
+				renderProducts();
+			}
+			return;
+		}
+
+		// ── Success: if Supabase returned 0 results and we haven't previously
+		//    loaded real data, show demo products as a visual placeholder.
+		if (catalogProducts.length === 0 && !supabaseLoadSucceeded) {
 			const starter = (window.DEMO_PRODUCTS || []).map((p) => ({
 				...p,
 				published: true,
-				stockStatus: (p.stockQuantity === undefined || p.stockQuantity > 0) ? "in-stock" : "out-of-stock"
+				stockStatus: (p.stockQuantity === undefined || p.stockQuantity === null || p.stockQuantity > 0)
+					? "in-stock"
+					: "out-of-stock"
 			}));
 			catalogProducts = starter;
 		}
 
+		hideNetworkRetryNotice();
 		renderCategories();
 		renderProducts();
+	}
+
+	/** Show a skeleton/loading placeholder while products are being fetched */
+	function showProductsLoading() {
+		if (!productGrid) return;
+		// Only show skeleton if the grid is currently empty (first load)
+		// Don't replace existing products with a loading state — that would cause flickering
+		if (catalogProducts.length > 0) return;
+
+		productGrid.hidden = false;
+		productGrid.innerHTML = Array.from({ length: 6 }, () => `
+			<article class="product-card product-card-skeleton" aria-hidden="true">
+				<div class="product-image-wrap skeleton-img"></div>
+				<div class="product-info">
+					<div class="skeleton-line skeleton-brand"></div>
+					<div class="skeleton-line skeleton-name"></div>
+					<div class="skeleton-line skeleton-price"></div>
+					<div class="skeleton-line skeleton-btn"></div>
+				</div>
+			</article>
+		`).join("");
+	}
+
+	/** Show a non-intrusive retry notice when a network error occurs */
+	function showNetworkRetryNotice() {
+		let notice = document.getElementById("networkRetryNotice");
+		if (!notice) {
+			notice = document.createElement("div");
+			notice.id = "networkRetryNotice";
+			notice.className = "network-retry-notice";
+			notice.setAttribute("role", "status");
+			notice.innerHTML = `
+				<span>⚡ Having trouble reaching the store — showing last available products.</span>
+				<button type="button" id="retryProductLoad">Retry</button>
+			`;
+			const shopSection = document.querySelector("#shop") || document.body;
+			shopSection.insertBefore(notice, shopSection.firstChild);
+
+			document.getElementById("retryProductLoad")?.addEventListener("click", () => {
+				hideNetworkRetryNotice();
+				loadPublishedProducts();
+			});
+		}
+		notice.hidden = false;
+	}
+
+	function hideNetworkRetryNotice() {
+		const notice = document.getElementById("networkRetryNotice");
+		if (notice) notice.hidden = true;
 	}
 
 	// ── Auth Dialog helpers ───────────────────────────────────────────────────
