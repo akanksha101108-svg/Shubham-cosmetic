@@ -59,12 +59,21 @@
     }
 
     async function requireAdmin(user) {
-        const { data, error } = await client.from("admin_users")
-            .select("user_id").eq("user_id", user.id).maybeSingle();
-
-        if (error) throw error;
-        if (!data) throw new Error("This account is not authorized as a store administrator. Please contact the owner.");
-        return true;
+        // Use server-side is_store_admin() RPC for authoritative verification
+        // This checks admin_users table AND the hardcoded owner email in Postgres
+        try {
+            const { data, error } = await client.rpc("is_store_admin");
+            if (error) throw error;
+            if (data === true) return true;
+        } catch (rpcErr) {
+            console.warn("is_store_admin RPC failed, falling back to admin_users lookup:", rpcErr);
+            // Fallback: direct admin_users table check
+            const { data, error } = await client.from("admin_users")
+                .select("user_id").eq("user_id", user.id).maybeSingle();
+            if (error) throw error;
+            if (data) return true;
+        }
+        throw new Error("This account is not authorized as a store administrator. Only the store owner can access this dashboard.");
     }
 
     async function loadProducts() {
@@ -585,26 +594,136 @@
         }
     }
 
-    async function handleLogin(event) {
-        event.preventDefault();
+    // ── Admin Authentication: Google OAuth ──────────────────────────────────
+
+    function handleAdminGoogleLogin() {
         const feedback = document.querySelector("#loginFeedback");
-        setMessage(feedback, "Verifying credentials…");
-
-        const form = event.currentTarget;
-
-        const { data, error } = await client.auth.signInWithPassword({
-            email: form.elements.email.value.trim(),
-            password: form.elements.password.value
-        });
-
-        form.elements.password.value = "";
-
-        if (error) {
-            setMessage(feedback, "Sign-in failed. Please verify your email and password.");
+        if (!client) {
+            setMessage(feedback, "⚠️ Cannot connect to the server. The Supabase project may be paused.");
             return;
         }
 
-        await handleAuthenticatedUser(data.user);
+        setMessage(feedback, "Redirecting to Google sign-in…");
+
+        const redirectTo = window.location.origin + window.location.pathname;
+        client.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+                queryParams: { prompt: "select_account" },
+                redirectTo
+            }
+        }).catch((err) => {
+            console.error("Admin Google OAuth error:", err);
+            const msg = err?.message || "";
+            if (msg.toLowerCase().includes("fetch") || msg.toLowerCase().includes("network")) {
+                setMessage(feedback, "⚠️ Cannot reach the server. Your Supabase project may be paused — resume it at app.supabase.com.");
+            } else {
+                setMessage(feedback, `Google sign-in failed: ${msg}`);
+            }
+        });
+    }
+
+    // ── Admin Authentication: Email OTP ──────────────────────────────────────
+
+    let adminOtpEmail = "";
+
+    async function handleAdminOtpRequest(event) {
+        event.preventDefault();
+        const feedback = document.querySelector("#loginFeedback");
+        const emailInput = document.querySelector("#adminEmail");
+        const btn = document.querySelector("#adminSendOtpBtn");
+        const email = emailInput?.value.trim();
+
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            setMessage(feedback, "Please enter a valid email address.");
+            return;
+        }
+
+        if (!client) {
+            setMessage(feedback, "⚠️ Cannot connect to the server. The Supabase project may be paused.");
+            return;
+        }
+
+        setMessage(feedback, "");
+        if (btn) { btn.disabled = true; btn.querySelector("span").textContent = "Sending…"; }
+
+        try {
+            const { error } = await client.auth.signInWithOtp({
+                email,
+                options: {
+                    shouldCreateUser: true,
+                    emailRedirectTo: window.location.origin + window.location.pathname
+                }
+            });
+
+            if (error) throw error;
+
+            adminOtpEmail = email;
+
+            // Show Step 2
+            const target = document.querySelector("#adminOtpEmailTarget");
+            if (target) target.textContent = email;
+            document.querySelector("#adminOtpRequestForm").hidden = true;
+            document.querySelector("#adminOtpVerifyForm").hidden = false;
+            setMessage(feedback, "✅ Verification code sent! Check your email inbox (and spam folder).");
+        } catch (err) {
+            console.error("Admin OTP send error:", err);
+            const msg = err?.message || "";
+            if (msg.toLowerCase().includes("fetch") || msg.toLowerCase().includes("network") || msg.toLowerCase().includes("failed to fetch")) {
+                setMessage(feedback, "⚠️ Cannot reach the server. Your Supabase project may be paused — resume it at app.supabase.com.");
+            } else if (msg.toLowerCase().includes("rate") || msg.toLowerCase().includes("limit")) {
+                setMessage(feedback, "⚠️ Email rate limit reached. Supabase Free Tier allows ~2 emails/hour. Please wait a few minutes or use Google Sign-In instead.");
+            } else {
+                setMessage(feedback, `Could not send code: ${msg || "Unknown error. Please try again."}`);
+            }
+        } finally {
+            if (btn) { btn.disabled = false; btn.querySelector("span").textContent = "Send Verification Code"; }
+        }
+    }
+
+    async function handleAdminOtpVerify(event) {
+        event.preventDefault();
+        const feedback = document.querySelector("#loginFeedback");
+        const token = document.querySelector("#adminOtpCode")?.value.trim();
+        const btn = document.querySelector("#adminVerifyOtpBtn");
+
+        if (!token || token.length !== 6) {
+            setMessage(feedback, "Please enter the 6-digit code from your email.");
+            return;
+        }
+
+        setMessage(feedback, "");
+        if (btn) { btn.disabled = true; btn.querySelector("span").textContent = "Verifying…"; }
+
+        try {
+            const { data, error } = await client.auth.verifyOtp({
+                email: adminOtpEmail,
+                token,
+                type: "email"
+            });
+
+            if (error) throw error;
+
+            // OTP verified — handleAuthenticatedUser will check admin status
+            await handleAuthenticatedUser(data.user);
+        } catch (err) {
+            console.error("Admin OTP verify error:", err);
+            setMessage(feedback, `Verification failed: ${err?.message || "Invalid or expired code. Please try again."}`);
+        } finally {
+            if (btn) { btn.disabled = false; btn.querySelector("span").textContent = "Verify & Sign In"; }
+        }
+    }
+
+    function resetAdminOtpForm() {
+        adminOtpEmail = "";
+        const requestForm = document.querySelector("#adminOtpRequestForm");
+        const verifyForm = document.querySelector("#adminOtpVerifyForm");
+        const otpInput = document.querySelector("#adminOtpCode");
+        const feedback = document.querySelector("#loginFeedback");
+        if (requestForm) requestForm.hidden = false;
+        if (verifyForm) verifyForm.hidden = true;
+        if (otpInput) otpInput.value = "";
+        if (feedback) feedback.textContent = "";
     }
 
     async function handleAuthenticatedUser(user) {
@@ -623,6 +742,7 @@
             setMessage(feedback, error.message || "Admin authorization could not be verified.");
             await client.auth.signOut();
             currentUser = null;
+            resetAdminOtpForm();
         }
     }
 
@@ -637,7 +757,31 @@
 
         renderCategories();
 
-        document.querySelector("#adminLoginForm")?.addEventListener("submit", handleLogin);
+        // Admin auth: Google OAuth button
+        document.querySelector("#adminGoogleBtn")?.addEventListener("click", handleAdminGoogleLogin);
+
+        // Admin auth: Email OTP request form
+        document.querySelector("#adminOtpRequestForm")?.addEventListener("submit", handleAdminOtpRequest);
+
+        // Admin auth: Email OTP verify form
+        document.querySelector("#adminOtpVerifyForm")?.addEventListener("submit", handleAdminOtpVerify);
+
+        // Admin auth: Resend OTP
+        document.querySelector("#adminResendOtp")?.addEventListener("click", async () => {
+            const feedback = document.querySelector("#loginFeedback");
+            if (!adminOtpEmail || !client) return;
+            try {
+                await client.auth.signInWithOtp({ email: adminOtpEmail, options: { shouldCreateUser: true, emailRedirectTo: window.location.origin + window.location.pathname } });
+                setMessage(feedback, "✅ New code sent! Check your inbox and spam folder.", true);
+            } catch (err) {
+                setMessage(feedback, `Could not resend: ${err?.message || "Please try again."}`);
+            }
+        });
+
+        // Admin auth: Change email (go back to Step 1)
+        document.querySelector("#adminChangeEmail")?.addEventListener("click", () => {
+            resetAdminOtpForm();
+        });
 
         document.querySelector("#signOutButton")?.addEventListener("click", () =>
             client.auth.signOut().then(() => location.reload())
