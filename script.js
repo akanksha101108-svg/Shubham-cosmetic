@@ -648,6 +648,8 @@
 
 		const profileEmail = document.querySelector("#profileUserEmail");
 		const profileBadge = document.querySelector("#profileBadge");
+		const ownerTopBar = document.getElementById("ownerTopBar");
+		const ownerDashLink = document.getElementById("ownerDashLink");
 
 		if (session?.user) {
 			const displayName = session.user.user_metadata?.full_name ||
@@ -664,6 +666,24 @@
 			}
 
 			loadCustomerProfile(session.user);
+
+			// Check server-side admin status
+			checkIsStoreAdmin(session.user).then((isAdmin) => {
+				if (isAdmin) {
+					// Owner Mode
+					if (ownerTopBar) ownerTopBar.hidden = false;
+					if (ownerDashLink) ownerDashLink.hidden = false;
+					if (customerButtonText) customerButtonText.textContent = "Owner";
+					if (profileBadge) {
+						profileBadge.textContent = "👑 Store Owner";
+						profileBadge.classList.remove("guest");
+					}
+				} else {
+					// Customer Mode
+					if (ownerTopBar) ownerTopBar.hidden = true;
+					if (ownerDashLink) ownerDashLink.hidden = true;
+				}
+			});
 		} else {
 			if (customerButtonText) customerButtonText.textContent = "Login";
 			customerLoginButton.classList.remove("logged-in");
@@ -674,6 +694,9 @@
 				profileBadge.textContent = "Guest";
 				profileBadge.classList.add("guest");
 			}
+
+			if (ownerTopBar) ownerTopBar.hidden = true;
+			if (ownerDashLink) ownerDashLink.hidden = true;
 		}
 	}
 
@@ -728,6 +751,94 @@
 
 		renderCategories();
 		renderProducts();
+	}
+
+	// ── Auth Dialog helpers ───────────────────────────────────────────────────
+
+	function openAuthDialog() {
+		const authDialog = document.getElementById("authDialog");
+		if (!authDialog) {
+			// Fallback: if the dialog is missing, try Google directly
+			if (supabaseClient) triggerGoogleLogin();
+			else showToast("Login unavailable. Supabase is not configured.");
+			return;
+		}
+		resetAuthDialog();
+
+		// Show a connection-problem banner if Supabase is unreachable
+		if (!supabaseClient) {
+			const feedback = document.getElementById("authFeedback");
+			if (feedback) feedback.textContent = "⚠️ Cannot connect to the store database. Please try again later or contact the store owner.";
+		}
+
+		authDialog.showModal();
+	}
+
+	function resetAuthDialog() {
+		const requestForm = document.getElementById("otpRequestForm");
+		const verifyForm = document.getElementById("otpVerifyForm");
+		const feedback = document.getElementById("authFeedback");
+		const emailInput = document.getElementById("authEmailInput");
+		const otpInput = document.getElementById("authOtpInput");
+
+		if (requestForm) requestForm.hidden = false;
+		if (verifyForm) verifyForm.hidden = true;
+		if (feedback) feedback.textContent = "";
+		if (emailInput) emailInput.value = "";
+		if (otpInput) otpInput.value = "";
+	}
+
+	function triggerGoogleLogin() {
+		if (!supabaseClient) {
+			showToast("⚠️ Cannot reach the server right now. Your Supabase project may be paused.");
+			const feedback = document.getElementById("authFeedback");
+			if (feedback) feedback.textContent = "⚠️ Server unreachable. Please resume the Supabase project at app.supabase.com, then try again.";
+			return;
+		}
+
+		// Build the redirect URL: always send back to the exact page the user is on
+		const redirectTo = window.location.origin + window.location.pathname;
+
+		supabaseClient.auth.signInWithOAuth({
+			provider: "google",
+			options: {
+				queryParams: { prompt: "select_account" },
+				redirectTo
+			}
+		}).catch((err) => {
+			console.error("Google OAuth error:", err);
+			const isNetworkError = !err?.message || err.message.toLowerCase().includes("fetch") || err.message.toLowerCase().includes("network");
+			if (isNetworkError) {
+				showToast("Cannot reach the server. Your Supabase project may be paused.");
+				const feedback = document.getElementById("authFeedback");
+				if (feedback) feedback.textContent = "⚠️ Server unreachable. See the fix guide below or contact the store owner.";
+			} else {
+				showToast(`Google login failed: ${err.message}`);
+			}
+		});
+	}
+
+	/**
+	 * Checks if the currently authenticated user is the store owner/admin.
+	 * Uses a server-side RPC to avoid client-only checks.
+	 */
+	async function checkIsStoreAdmin(user) {
+		if (!user || !supabaseClient) return false;
+
+		// Quick email check — but still requires RPC server confirmation
+		const OWNER_EMAIL = "akanksha101108@gmail.com";
+		const userEmail = (user.email || "").toLowerCase().trim();
+
+		try {
+			const { data, error } = await supabaseClient.rpc("is_store_admin");
+			if (!error && data === true) return true;
+		} catch (err) {
+			console.warn("is_store_admin RPC check failed:", err);
+			// Final fallback: email comparison (only if server call fails entirely)
+			if (userEmail === OWNER_EMAIL) return true;
+		}
+
+		return false;
 	}
 
 	function setupEventListeners() {
@@ -913,29 +1024,159 @@
 			}
 		});
 
-		// Customer Account Button in Header
+		// Customer Account Button in Header — opens Auth Dialog
 		if (customerLoginButton) {
 			customerLoginButton.addEventListener("click", () => {
 				if (state.customerSession?.user) {
-					// Open Customer Profile Modal
+					// Already logged in → open Customer Profile Modal
 					if (profileDialog) profileDialog.showModal();
 				} else {
-					// Trigger Google login via Supabase
-					if (supabaseClient) {
-						supabaseClient.auth.signInWithOAuth({
-							provider: "google",
-							options: {
-								queryParams: { prompt: "select_account" },
-								redirectTo: window.location.origin + window.location.pathname
-							}
-						}).catch((err) => {
-							console.error("Login trigger error:", err);
-							showToast("Login could not be started. Check your connection.");
-						});
-					} else {
-						showToast("Supabase configuration not detected.");
-					}
+					// Not logged in → open the Auth Dialog (Google + Email OTP)
+					openAuthDialog();
 				}
+			});
+		}
+
+		// ── Auth Dialog: Google OAuth button ──────────────────────────────────
+		const googleAuthBtn = document.getElementById("googleAuthBtn");
+		if (googleAuthBtn) {
+			googleAuthBtn.addEventListener("click", () => {
+				triggerGoogleLogin();
+			});
+		}
+
+		// ── Auth Dialog: Request OTP (Step 1) ────────────────────────────────
+		const otpRequestForm = document.getElementById("otpRequestForm");
+		if (otpRequestForm) {
+			otpRequestForm.addEventListener("submit", async (e) => {
+				e.preventDefault();
+				const email = document.getElementById("authEmailInput")?.value.trim();
+				const feedback = document.getElementById("authFeedback");
+				const btn = document.getElementById("sendOtpBtn");
+
+				if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+					if (feedback) feedback.textContent = "Please enter a valid email address.";
+					return;
+				}
+
+				if (feedback) feedback.textContent = "";
+				if (btn) { btn.disabled = true; btn.querySelector("span").textContent = "Sending…"; }
+
+				if (!supabaseClient) {
+					if (feedback) {
+						feedback.textContent = "⚠️ Cannot connect to authentication server. The Supabase project may be paused. Please try Google Sign-In or contact the store owner.";
+					}
+					if (btn) { btn.disabled = false; btn.querySelector("span").textContent = "Send Verification Code"; }
+					return;
+				}
+
+				try {
+					const { error } = await supabaseClient.auth.signInWithOtp({
+						email,
+						options: { shouldCreateUser: true }
+					});
+
+					if (error) throw error;
+
+					// Move to Step 2: OTP verification
+					const sentTarget = document.getElementById("otpEmailSentTarget");
+					if (sentTarget) sentTarget.textContent = email;
+
+					document.getElementById("otpRequestForm").hidden = true;
+					document.getElementById("otpVerifyForm").hidden = false;
+					if (feedback) {
+						feedback.textContent = "✅ Check your email for the 6-digit code (also check spam).";
+					}
+				} catch (err) {
+					console.error("OTP send error:", err);
+					const msg = err?.message || "";
+					if (msg.toLowerCase().includes("fetch") || msg.toLowerCase().includes("network") || msg.toLowerCase().includes("failed to fetch")) {
+						if (feedback) feedback.textContent = "⚠️ Cannot reach the server. Your Supabase project is likely paused — see the notice above.";
+					} else {
+						if (feedback) feedback.textContent = `Could not send code: ${msg || "Unknown error. Please try again."}`;
+					}
+				} finally {
+					if (btn) { btn.disabled = false; btn.querySelector("span").textContent = "Send Verification Code"; }
+				}
+			});
+		}
+
+		// ── Auth Dialog: Verify OTP (Step 2) ─────────────────────────────────
+		const otpVerifyForm = document.getElementById("otpVerifyForm");
+		if (otpVerifyForm) {
+			otpVerifyForm.addEventListener("submit", async (e) => {
+				e.preventDefault();
+				const email = document.getElementById("authEmailInput")?.value.trim();
+				const token = document.getElementById("authOtpInput")?.value.trim();
+				const feedback = document.getElementById("authFeedback");
+				const btn = document.getElementById("verifyOtpBtn");
+
+				if (!token || token.length !== 6) {
+					if (feedback) feedback.textContent = "Please enter the 6-digit code from your email.";
+					return;
+				}
+
+				if (feedback) feedback.textContent = "";
+				if (btn) { btn.disabled = true; btn.querySelector("span").textContent = "Verifying…"; }
+
+				try {
+					const { data, error } = await supabaseClient.auth.verifyOtp({
+						email,
+						token,
+						type: "email"
+					});
+
+					if (error) throw error;
+
+					// Success — close dialog, session will be handled by onAuthStateChange
+					const authDialog = document.getElementById("authDialog");
+					if (authDialog) authDialog.close();
+					resetAuthDialog();
+					showToast(`Welcome! Signed in as ${data.user?.email || email}.`);
+				} catch (err) {
+					console.error("OTP verify error:", err);
+					if (feedback) feedback.textContent = `Verification failed: ${err?.message || "Invalid or expired code. Please try again."}`;
+				} finally {
+					if (btn) { btn.disabled = false; btn.querySelector("span").textContent = "Verify & Sign In"; }
+				}
+			});
+		}
+
+		// ── Auth Dialog: Resend OTP ───────────────────────────────────────────
+		const resendOtpBtn = document.getElementById("resendOtpBtn");
+		if (resendOtpBtn) {
+			resendOtpBtn.addEventListener("click", async () => {
+				const email = document.getElementById("authEmailInput")?.value.trim();
+				const feedback = document.getElementById("authFeedback");
+				if (!email || !supabaseClient) return;
+				try {
+					await supabaseClient.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+					if (feedback) feedback.textContent = "✅ New code sent! Check your inbox and spam folder.";
+				} catch (err) {
+					if (feedback) feedback.textContent = `Could not resend: ${err?.message || "Please try again."}`;
+				}
+			});
+		}
+
+		// ── Auth Dialog: Use different email ─────────────────────────────────
+		const changeAuthEmailBtn = document.getElementById("changeAuthEmailBtn");
+		if (changeAuthEmailBtn) {
+			changeAuthEmailBtn.addEventListener("click", () => {
+				document.getElementById("otpVerifyForm").hidden = true;
+				document.getElementById("otpRequestForm").hidden = false;
+				const feedback = document.getElementById("authFeedback");
+				if (feedback) feedback.textContent = "";
+				document.getElementById("authOtpInput").value = "";
+			});
+		}
+
+		// ── Owner Quick Logout (top bar) ──────────────────────────────────────
+		const ownerQuickLogoutBtn = document.getElementById("ownerQuickLogoutBtn");
+		if (ownerQuickLogoutBtn && supabaseClient) {
+			ownerQuickLogoutBtn.addEventListener("click", async () => {
+				await supabaseClient.auth.signOut();
+				updateCustomerLoginUI(null);
+				showToast("Signed out successfully.");
 			});
 		}
 

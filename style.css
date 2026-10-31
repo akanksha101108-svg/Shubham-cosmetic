@@ -1833,3 +1833,288 @@ dialog::backdrop {
 		transition-duration: .01ms !important;
 	}
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   OWNER ANNOUNCEMENT TOP BAR
+   ═══════════════════════════════════════════════════════════════ */
+
+.owner-top-bar {
+	background: linear-gradient(90deg, #c2185b 0%, #e91e8c 100%);
+	color: #fff;
+	font-size: 13px;
+	font-weight: 600;
+	padding: 8px 16px;
+	text-align: center;
+}
+
+.owner-top-bar-inner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.owner-top-bar-links {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.owner-bar-btn {
+	background: rgba(255,255,255,0.2);
+	color: #fff;
+	border: 1px solid rgba(255,255,255,0.5);
+	border-radius: 20px;
+	padding: 4px 14px;
+	font-size: 12px;
+	font-weight: 700;
+	text-decoration: none;
+	transition: background 0.2s;
+}
+.owner-bar-btn:hover { background: rgba(255,255,255,0.35); }
+
+.owner-bar-btn-logout {
+	background: transparent;
+	color: rgba(255,255,255,0.85);
+	border: none;
+	cursor: pointer;
+	font-size: 12px;
+	padding: 2px 6px;
+	text-decoration: underline;
+}
+.owner-bar-btn-logout:hover { color: #fff; }
+
+/* Admin Dashboard link in header */
+.owner-dash-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 13px;
+	font-weight: 700;
+	color: #c2185b;
+	text-decoration: none;
+	padding: 4px 10px;
+	border: 1.5px solid #e91e8c;
+	border-radius: 20px;
+	transition: background 0.2s, color 0.2s;
+	white-space: nowrap;
+}
+.owner-dash-link:hover {
+	background: #e91e8c;
+	color: #fff;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   AUTH DIALOG  (Google + Email OTP Sign-In Modal)
+   ═══════════════════════════════════════════════════════════════ */
+
+.auth-dialog {
+	width: min(460px, 96vw);
+	border: none;
+	border-radius: 20px;
+	padding: 0;
+	box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+	background: #fff;
+	overflow: hidden;
+}
+
+.auth-dialog::backdrop {
+	background: rgba(0,0,0,0.45);
+	backdrop-filter: blur(4px);
+}
+
+.auth-dialog-header {
+	background: linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%);
+	padding: 28px 28px 22px;
+	text-align: center;
+	border-bottom: 1px solid #f8c8de;
+}
+
+.auth-badge {
+	display: inline-block;
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 1.5px;
+	color: #c2185b;
+	background: rgba(194,24,91,0.1);
+	border: 1px solid rgba(194,24,91,0.25);
+	border-radius: 20px;
+	padding: 3px 12px;
+	margin-bottom: 10px;
+	text-transform: uppercase;
+}
+
+.auth-dialog-header h2 {
+	font-size: 22px;
+	font-weight: 700;
+	color: #1a1a2e;
+	margin: 0 0 6px;
+}
+
+.auth-dialog-header p {
+	font-size: 13.5px;
+	color: #555;
+	margin: 0;
+	line-height: 1.5;
+}
+
+.auth-dialog-body {
+	padding: 24px 28px 28px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+/* Google Sign-In Button */
+.button-google {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	width: 100%;
+	padding: 12px 20px;
+	background: #fff;
+	border: 1.5px solid #ddd;
+	border-radius: 12px;
+	font-size: 15px;
+	font-weight: 600;
+	color: #333;
+	cursor: pointer;
+	transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+	box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.button-google:hover {
+	background: #f5f5f5;
+	border-color: #bbb;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.google-icon { flex-shrink: 0; }
+
+/* OR Divider */
+.auth-divider {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: #aaa;
+	font-size: 12px;
+	font-weight: 500;
+}
+.auth-divider::before,
+.auth-divider::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: #e8e8e8;
+}
+
+/* OTP Forms */
+.auth-otp-form {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.field-label {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	font-size: 13px;
+	font-weight: 600;
+	color: #333;
+}
+.field-label input {
+	border: 1.5px solid #ddd;
+	border-radius: 10px;
+	padding: 11px 14px;
+	font-size: 15px;
+	outline: none;
+	transition: border-color 0.2s, box-shadow 0.2s;
+	background: #fafafa;
+}
+.field-label input:focus {
+	border-color: #e91e8c;
+	box-shadow: 0 0 0 3px rgba(233,30,140,0.1);
+	background: #fff;
+}
+
+.auth-submit-btn {
+	width: 100%;
+	background: linear-gradient(135deg, #e91e8c, #c2185b);
+	color: #fff;
+	border: none;
+	border-radius: 12px;
+	padding: 13px 20px;
+	font-size: 15px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: opacity 0.2s, transform 0.15s;
+}
+.auth-submit-btn:hover { opacity: 0.92; }
+.auth-submit-btn:active { transform: scale(0.98); }
+.auth-submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* OTP Sent Banner */
+.otp-sent-banner {
+	background: #e8f5e9;
+	border: 1px solid #a5d6a7;
+	border-radius: 10px;
+	padding: 10px 14px;
+	font-size: 13px;
+	color: #2e7d32;
+}
+
+/* Action links below OTP form */
+.otp-action-links {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 12.5px;
+	color: #888;
+	justify-content: center;
+}
+.otp-action-links .sep { color: #ccc; }
+.text-link-btn {
+	background: none;
+	border: none;
+	color: #c2185b;
+	cursor: pointer;
+	font-size: 12.5px;
+	font-weight: 600;
+	padding: 0;
+	text-decoration: underline;
+}
+.text-link-btn:hover { color: #e91e8c; }
+
+/* Form Feedback */
+.form-feedback {
+	font-size: 13px;
+	color: #c62828;
+	min-height: 18px;
+	text-align: center;
+	line-height: 1.5;
+}
+.form-feedback:empty { display: none; }
+
+/* Auth dialog close button position */
+.auth-dialog .dialog-close {
+	position: absolute;
+	top: 14px;
+	right: 16px;
+	z-index: 2;
+	background: rgba(0,0,0,0.07);
+	border: none;
+	border-radius: 50%;
+	width: 32px;
+	height: 32px;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+	color: #555;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background 0.2s;
+}
+.auth-dialog .dialog-close:hover { background: rgba(0,0,0,0.15); }
