@@ -1,5 +1,5 @@
 window.STORE_CONFIG = {
-  name: "Shubham General Store",
+  name: "Shubham Cosmetic & General Store",
   whatsappNumber: "919250203173"
 };
 
@@ -205,8 +205,8 @@ window.DEMO_PRODUCTS = [
   }
 ].map((product) => ({
   ...product,
-  category: product.category === "Lips" ? "Lips" : ({ Eyes: "Makeup", Face: "Makeup", Nails: "Nail Care", Brushes: "Beauty Accessories" }[product.category] || product.category),
-  isDemo: product.isDemo ?? true,
-  published: false,
-  needsCategoryReview: product.category === "Lips"
+  category: product.category === "Lips" ? "Makeup" : ({ Eyes: "Makeup", Face: "Makeup", Nails: "Nail Care", Brushes: "Beauty Accessories" }[product.category] || product.category),
+  isDemo: false,
+  published: true,
+  needsCategoryReview: false
 }));
